@@ -5,6 +5,13 @@ export type StructureIdeaInput = {
   companies: { id: string; name: string; slug: string }[];
 };
 
+export type RefineProposalInput = {
+  rawText: string;
+  currentProposal: AiIdeaProposal;
+  feedback: string;
+  companies: { id: string; name: string; slug: string }[];
+};
+
 export type WeeklyReviewInput = {
   companyName: string;
   projects: { name: string; progressPct: number; status: string }[];
@@ -21,5 +28,6 @@ export type WeeklyReviewInput = {
  */
 export interface AIProvider {
   structureIdea(input: StructureIdeaInput): Promise<AiIdeaProposal>;
+  refineProposal(input: RefineProposalInput): Promise<AiIdeaProposal>;
   generateWeeklyReview(input: WeeklyReviewInput): Promise<string>;
 }

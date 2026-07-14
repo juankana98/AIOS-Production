@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { AIProvider, StructureIdeaInput, WeeklyReviewInput } from "@/lib/ai/provider";
-import { STRUCTURE_IDEA_SYSTEM, WEEKLY_REVIEW_SYSTEM } from "@/lib/ai/prompts";
+import type { AIProvider, RefineProposalInput, StructureIdeaInput, WeeklyReviewInput } from "@/lib/ai/provider";
+import { REFINE_PROPOSAL_SYSTEM, STRUCTURE_IDEA_SYSTEM, WEEKLY_REVIEW_SYSTEM } from "@/lib/ai/prompts";
 import type { AiIdeaProposal } from "@/lib/types";
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
@@ -64,21 +64,14 @@ export class AnthropicProvider implements AIProvider {
     this.client = new Anthropic({ apiKey });
   }
 
-  async structureIdea(input: StructureIdeaInput): Promise<AiIdeaProposal> {
-    const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
-
+  private async callProposeStructureTool(system: string, userContent: string): Promise<AiIdeaProposal> {
     const response = await this.client.messages.create({
       model: MODEL,
       max_tokens: 2000,
-      system: STRUCTURE_IDEA_SYSTEM,
+      system,
       tools: [PROPOSE_STRUCTURE_TOOL],
       tool_choice: { type: "tool", name: "propose_structure" },
-      messages: [
-        {
-          role: "user",
-          content: `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea:\n${input.rawText}`,
-        },
-      ],
+      messages: [{ role: "user", content: userContent }],
     });
 
     const toolUse = response.content.find((b) => b.type === "tool_use");
@@ -87,6 +80,24 @@ export class AnthropicProvider implements AIProvider {
     }
 
     return toolUse.input as AiIdeaProposal;
+  }
+
+  async structureIdea(input: StructureIdeaInput): Promise<AiIdeaProposal> {
+    const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
+
+    return this.callProposeStructureTool(
+      STRUCTURE_IDEA_SYSTEM,
+      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea:\n${input.rawText}`
+    );
+  }
+
+  async refineProposal(input: RefineProposalInput): Promise<AiIdeaProposal> {
+    const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
+
+    return this.callProposeStructureTool(
+      REFINE_PROPOSAL_SYSTEM,
+      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea original:\n${input.rawText}\n\nPropuesta actual:\n${JSON.stringify(input.currentProposal, null, 2)}\n\nFeedback del usuario para ajustar la propuesta:\n${input.feedback}`
+    );
   }
 
   async generateWeeklyReview(input: WeeklyReviewInput): Promise<string> {

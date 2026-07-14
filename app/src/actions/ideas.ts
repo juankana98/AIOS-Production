@@ -57,6 +57,49 @@ export async function processIdea(ideaId: string) {
   revalidatePath("/ideas");
 }
 
+export async function refineIdeaProposal(ideaId: string, feedback: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  const trimmedFeedback = feedback.trim();
+  if (!trimmedFeedback) throw new Error("Escribe qué quieres ajustar antes de enviar");
+
+  const { data: idea } = await supabase
+    .from("idea_inbox")
+    .select("raw_text, ai_proposal")
+    .eq("id", ideaId)
+    .single();
+  if (!idea) throw new Error("Idea no encontrada");
+  if (!idea.ai_proposal) throw new Error("Esta idea todavía no tiene una propuesta para ajustar");
+
+  const { data: companies } = await supabase.from("companies").select("id, name, slug").eq("is_archived", false);
+
+  await supabase.from("idea_inbox").update({ status: "processing" }).eq("id", ideaId);
+
+  try {
+    const provider = getAIProvider();
+    const proposal = await provider.refineProposal({
+      rawText: idea.raw_text,
+      currentProposal: idea.ai_proposal as AiIdeaProposal,
+      feedback: trimmedFeedback,
+      companies: companies ?? [],
+    });
+
+    await supabase
+      .from("idea_inbox")
+      .update({ status: "pending", ai_proposal: proposal })
+      .eq("id", ideaId);
+  } catch (err) {
+    await supabase.from("idea_inbox").update({ status: "pending" }).eq("id", ideaId);
+    throw err;
+  }
+
+  revalidatePath("/ideas");
+}
+
 export async function applyIdeaProposal(ideaId: string) {
   const supabase = await createClient();
   const {

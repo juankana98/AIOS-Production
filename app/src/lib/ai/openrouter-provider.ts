@@ -1,5 +1,5 @@
-import type { AIProvider, StructureIdeaInput, WeeklyReviewInput } from "@/lib/ai/provider";
-import { STRUCTURE_IDEA_SYSTEM, WEEKLY_REVIEW_SYSTEM } from "@/lib/ai/prompts";
+import type { AIProvider, RefineProposalInput, StructureIdeaInput, WeeklyReviewInput } from "@/lib/ai/provider";
+import { REFINE_PROPOSAL_SYSTEM, STRUCTURE_IDEA_SYSTEM, WEEKLY_REVIEW_SYSTEM } from "@/lib/ai/prompts";
 import type { AiIdeaProposal } from "@/lib/types";
 
 const MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5";
@@ -33,15 +33,13 @@ export class OpenRouterProvider implements AIProvider {
     return res.json();
   }
 
-  async structureIdea(input: StructureIdeaInput): Promise<AiIdeaProposal> {
-    const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
-
+  private async askForProposal(system: string, userContent: string): Promise<AiIdeaProposal> {
     const data = await this.chat({
       messages: [
-        { role: "system", content: STRUCTURE_IDEA_SYSTEM },
+        { role: "system", content: system },
         {
           role: "user",
-          content: `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea:\n${input.rawText}\n\nResponde SOLO con JSON válido que cumpla el esquema AiIdeaProposal, sin texto adicional.`,
+          content: `${userContent}\n\nResponde SOLO con JSON válido que cumpla el esquema AiIdeaProposal, sin texto adicional.`,
         },
       ],
       response_format: { type: "json_object" },
@@ -50,6 +48,24 @@ export class OpenRouterProvider implements AIProvider {
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error("La IA no devolvió contenido");
     return extractJson(content) as AiIdeaProposal;
+  }
+
+  async structureIdea(input: StructureIdeaInput): Promise<AiIdeaProposal> {
+    const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
+
+    return this.askForProposal(
+      STRUCTURE_IDEA_SYSTEM,
+      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea:\n${input.rawText}`
+    );
+  }
+
+  async refineProposal(input: RefineProposalInput): Promise<AiIdeaProposal> {
+    const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
+
+    return this.askForProposal(
+      REFINE_PROPOSAL_SYSTEM,
+      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea original:\n${input.rawText}\n\nPropuesta actual:\n${JSON.stringify(input.currentProposal, null, 2)}\n\nFeedback del usuario para ajustar la propuesta:\n${input.feedback}`
+    );
   }
 
   async generateWeeklyReview(input: WeeklyReviewInput): Promise<string> {
