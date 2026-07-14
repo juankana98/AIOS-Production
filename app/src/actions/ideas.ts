@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai";
+import { REASONING_TIERS, type ReasoningTier } from "@/lib/ai/models";
 import type { AiIdeaProposal } from "@/lib/types";
+
+function parseTier(tier: string | undefined): ReasoningTier | undefined {
+  return tier && tier in REASONING_TIERS ? (tier as ReasoningTier) : undefined;
+}
 
 export async function createIdea(formData: FormData) {
   const supabase = await createClient();
@@ -24,7 +29,7 @@ export async function createIdea(formData: FormData) {
   revalidatePath("/ideas");
 }
 
-export async function processIdea(ideaId: string) {
+export async function processIdea(ideaId: string, tier?: string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -43,6 +48,7 @@ export async function processIdea(ideaId: string) {
     const proposal = await provider.structureIdea({
       rawText: idea.raw_text,
       companies: companies ?? [],
+      tier: parseTier(tier),
     });
 
     await supabase
@@ -57,7 +63,7 @@ export async function processIdea(ideaId: string) {
   revalidatePath("/ideas");
 }
 
-export async function refineIdeaProposal(ideaId: string, feedback: string) {
+export async function refineIdeaProposal(ideaId: string, feedback: string, tier?: string) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -86,6 +92,7 @@ export async function refineIdeaProposal(ideaId: string, feedback: string) {
       currentProposal: idea.ai_proposal as AiIdeaProposal,
       feedback: trimmedFeedback,
       companies: companies ?? [],
+      tier: parseTier(tier),
     });
 
     await supabase

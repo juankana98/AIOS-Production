@@ -1,8 +1,10 @@
 import type { AiIdeaProposal } from "@/lib/types";
+import type { ReasoningTier } from "@/lib/ai/models";
 
 export type StructureIdeaInput = {
   rawText: string;
   companies: { id: string; name: string; slug: string }[];
+  tier?: ReasoningTier;
 };
 
 export type RefineProposalInput = {
@@ -10,6 +12,7 @@ export type RefineProposalInput = {
   currentProposal: AiIdeaProposal;
   feedback: string;
   companies: { id: string; name: string; slug: string }[];
+  tier?: ReasoningTier;
 };
 
 export type WeeklyReviewInput = {

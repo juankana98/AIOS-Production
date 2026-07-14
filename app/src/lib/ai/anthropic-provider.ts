@@ -1,9 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIProvider, RefineProposalInput, StructureIdeaInput, WeeklyReviewInput } from "@/lib/ai/provider";
 import { REFINE_PROPOSAL_SYSTEM, STRUCTURE_IDEA_SYSTEM, WEEKLY_REVIEW_SYSTEM } from "@/lib/ai/prompts";
+import { DEFAULT_TIER, REASONING_TIERS, type ReasoningTier } from "@/lib/ai/models";
 import type { AiIdeaProposal } from "@/lib/types";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const MODEL = process.env.ANTHROPIC_MODEL || REASONING_TIERS[DEFAULT_TIER].anthropicModel;
+
+function resolveModel(tier?: ReasoningTier): string {
+  return tier ? REASONING_TIERS[tier].anthropicModel : MODEL;
+}
 
 const PROPOSE_STRUCTURE_TOOL: Anthropic.Tool = {
   name: "propose_structure",
@@ -64,9 +69,13 @@ export class AnthropicProvider implements AIProvider {
     this.client = new Anthropic({ apiKey });
   }
 
-  private async callProposeStructureTool(system: string, userContent: string): Promise<AiIdeaProposal> {
+  private async callProposeStructureTool(
+    system: string,
+    userContent: string,
+    tier?: ReasoningTier
+  ): Promise<AiIdeaProposal> {
     const response = await this.client.messages.create({
-      model: MODEL,
+      model: resolveModel(tier),
       max_tokens: 2000,
       system,
       tools: [PROPOSE_STRUCTURE_TOOL],
@@ -87,7 +96,8 @@ export class AnthropicProvider implements AIProvider {
 
     return this.callProposeStructureTool(
       STRUCTURE_IDEA_SYSTEM,
-      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea:\n${input.rawText}`
+      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea:\n${input.rawText}`,
+      input.tier
     );
   }
 
@@ -96,7 +106,8 @@ export class AnthropicProvider implements AIProvider {
 
     return this.callProposeStructureTool(
       REFINE_PROPOSAL_SYSTEM,
-      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea original:\n${input.rawText}\n\nPropuesta actual:\n${JSON.stringify(input.currentProposal, null, 2)}\n\nFeedback del usuario para ajustar la propuesta:\n${input.feedback}`
+      `Empresas disponibles:\n${companiesList || "(ninguna registrada aún)"}\n\nIdea original:\n${input.rawText}\n\nPropuesta actual:\n${JSON.stringify(input.currentProposal, null, 2)}\n\nFeedback del usuario para ajustar la propuesta:\n${input.feedback}`,
+      input.tier
     );
   }
 
