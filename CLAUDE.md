@@ -91,6 +91,6 @@ Swap del proveedor de IA a OpenRouter, API keys por usuario, invitación de otra
 
 ## Estado actual
 
-Scaffold funcional de las Fases 0-7 completado (2026-07-12): esquema SQL completo, auth, CRUD de Empresas/Metas/OKRs/Proyectos/Tareas, control de tiempos, agenda inteligente con scoring de prioridad, accountability (check-ins/rachas/semáforo/resumen semanal por IA), agente de IA idea→estructura, y script de sync a Obsidian con vault inicial ya creado en `C:\Users\57302\Desktop\IA JUAN CAMILO\Obsidian Centro de Comando\`.
+En producción y en uso real desde 2026-07-13: `https://aios-production.vercel.app`, repo en `github.com/juankana98/AIOS-Production`, Supabase real conectado, IA vía OpenRouter con selector de nivel de razonamiento multi-proveedor.
 
-Pendiente antes de uso real: crear el proyecto de Supabase en la nube y correr la migración, completar `app/.env.local`, probar el flujo completo con datos reales, desplegar a Vercel. Ninguno de estos pasos requiere rediseñar nada — es solo provisión de infraestructura y pruebas.
+**Este bloque se mantiene corto a propósito.** El estado vivo y detallado — infraestructura, qué está construido, qué falta, y la bitácora completa de cómo se llegó hasta acá — vive en el vault de Obsidian, no aquí: empezar por `vault/Desarrollo/Estado Actual.md`, con `vault/Desarrollo/Bitácora de cambios.md` para el historial y `vault/Desarrollo/Pendientes y Roadmap.md` para lo que falta. Ese vault se actualiza en cada sesión de trabajo sobre el proyecto (ver `vault/CLAUDE.md` → sección "Dev log") — es la fuente de verdad para "qué pasó y por qué", no este archivo.
