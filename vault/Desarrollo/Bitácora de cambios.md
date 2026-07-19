@@ -64,3 +64,11 @@ Bug real encontrado validando la integración (no en el código de Google Calend
 De paso se encontró que `.env.example` nunca había estado en git desde el primer commit — el `.gitignore` de Next.js por defecto (`.env*`) también lo excluía a él. Se corrigió con `!.env.example`.
 
 Todo probado end-to-end con Playwright antes de subir (signup → crear proyecto/tarea → generar agenda → drag-and-drop → editar proyecto → editar tarea) y verificado con la cuenta real de Google Calendar del usuario, no solo con datos de prueba.
+
+## 2026-07-19 — Fix: la agenda automática ignoraba la hora actual
+
+El usuario reportó que "Generar agenda del día" siempre programaba las tareas empezando a las 8:00am, sin importar a qué hora del día se generara — si lo corrías a las 2pm, igual intentaba meter la primera tarea a las 8am (una hora que ya pasó). `generateScheduleForDay` construía la ventana de horario laboral completa (8-19h) sin considerar el momento real en que se está generando.
+
+Fix en `src/actions/schedule.ts`: si `dateISO` corresponde a hoy, el inicio efectivo de la ventana se ajusta a `max(8am, ahora redondeado al siguiente slot de 15 min)` antes de calcular huecos libres. Para días futuros el comportamiento no cambia (usa el horario laboral completo). Si ya pasaron las 7pm al generar la agenda de hoy, no agenda nada (ventana vacía) en vez de fallar.
+
+Verificado en vivo: generando a las 12:48pm, la primera tarea quedó agendada a la 1:00pm (siguiente slot de 15 min), no a las 8am.

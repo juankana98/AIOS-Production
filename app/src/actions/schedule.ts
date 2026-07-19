@@ -4,12 +4,18 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { computePriorityScore } from "@/lib/priority";
 import { workHoursRange, getGoogleBusyIntervals, computeDailyCapacity } from "@/lib/capacity";
-import { localDateTime, localDateTimeFromInput } from "@/lib/timezone";
+import { localDateTime, localDateTimeFromInput, todayISO } from "@/lib/timezone";
 import type { TaskRow } from "@/lib/types";
 import type { BusyInterval } from "@/lib/google/calendar";
 
 const MIN_BLOCK_MINUTES = 15;
 const DEFAULT_TASK_MINUTES = 30;
+
+/** Redondea hacia arriba al siguiente múltiplo de `minutes` (para no agendar a las 14:37, sino a las 14:45). */
+function roundUpToSlot(date: Date, minutes: number): Date {
+  const ms = minutes * 60_000;
+  return new Date(Math.ceil(date.getTime() / ms) * ms);
+}
 
 type FreeSlot = { start: Date; end: Date };
 
@@ -46,7 +52,19 @@ export async function generateScheduleForDay(dateISO: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  const { dayStart, dayEnd } = workHoursRange(dateISO);
+  let { dayStart, dayEnd } = workHoursRange(dateISO);
+
+  // Si se genera la agenda de HOY después de que ya empezó la jornada, no
+  // tiene sentido seguir agendando tareas desde las 8am — arranca desde
+  // ahora (redondeado al siguiente slot de 15 min). Para días futuros se
+  // usa el horario laboral completo normal.
+  if (dateISO === todayISO()) {
+    const now = roundUpToSlot(new Date(), MIN_BLOCK_MINUTES);
+    if (now > dayStart) dayStart = now;
+  }
+  if (dayStart >= dayEnd) {
+    return { scheduled: 0, skipped: 0 };
+  }
 
   const rangeStart = localDateTime(dateISO, 0, 0);
   const rangeEnd = localDateTime(dateISO, 23, 59);

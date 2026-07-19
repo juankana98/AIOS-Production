@@ -21,3 +21,7 @@ Registro cronológico append-only. Formato de cada entrada: `## [YYYY-MM-DD] tip
 ## [2026-07-13] dev | Selector de nivel de razonamiento multi-proveedor (GPT-5.1/Grok 4.20/Gemini 3.1 Flash Lite), comparación Opus vs GPT-5.1
 
 ## [2026-07-13] dev | Carpeta Desarrollo/ creada en el vault como memoria de desarrollo del proyecto — ver Desarrollo/Estado Actual.md
+
+## [2026-07-14] dev | Calendario visual + Google Calendar real + capacidad/desempeño + edición de tareas/proyectos + fix de zona horaria — ver Desarrollo/Bitácora de cambios.md
+
+## [2026-07-19] dev | Fix: "Generar agenda del día" ignoraba la hora actual y agendaba desde las 8am aunque ya fuera medio día — ahora arranca desde ahora (redondeado a 15 min) cuando se genera la agenda de hoy
