@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertCanCreateProject } from "@/lib/limits";
 
 export async function createProject(formData: FormData) {
   const supabase = await createClient();
@@ -14,6 +15,8 @@ export async function createProject(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const expectedOutcome = String(formData.get("expected_outcome") ?? "").trim();
   if (!companyId || !name) throw new Error("Empresa y nombre son obligatorios");
+
+  await assertCanCreateProject(supabase);
 
   const { error } = await supabase.from("projects").insert({
     owner_id: user.id,

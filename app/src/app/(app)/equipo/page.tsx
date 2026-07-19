@@ -1,10 +1,17 @@
 import { getWorkspaceTeamData } from "@/actions/workspace";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { InviteMemberForm } from "@/components/equipo/invite-member-form";
 import { MemberRowActions } from "@/components/equipo/member-row-actions";
 import { CancelInvitationButton } from "@/components/equipo/cancel-invitation-button";
 import { createClient } from "@/lib/supabase/server";
+
+function usagePct(used: number, max: number | null): number {
+  if (max === null) return 0;
+  if (max === 0) return 100;
+  return Math.min(100, Math.round((used / max) * 100));
+}
 
 const ROLE_LABEL: Record<string, string> = {
   owner: "Owner",
@@ -19,7 +26,7 @@ const ROLE_TONE: Record<string, "teal" | "slate"> = {
 };
 
 export default async function EquipoPage() {
-  const { workspace, members, invitations } = await getWorkspaceTeamData();
+  const { workspace, members, invitations, usage } = await getWorkspaceTeamData();
   const supabase = await createClient();
   const {
     data: { user },
@@ -39,6 +46,49 @@ export default async function EquipoPage() {
           {workspace.name} · billing por workspace — invita personas a colaborar en las mismas empresas y proyectos.
         </p>
       </div>
+
+      {usage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Tu plan: {usage.limits.label}</CardTitle>
+            <Badge tone={usage.limits.aiEnabled ? "teal" : "slate"}>
+              {usage.limits.aiEnabled ? "IA incluida" : "Sin IA"}
+            </Badge>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+                <span>Empresas</span>
+                <span>
+                  {usage.companies}
+                  {usage.limits.maxCompanies !== null ? ` / ${usage.limits.maxCompanies}` : ""}
+                </span>
+              </div>
+              <ProgressBar value={usagePct(usage.companies, usage.limits.maxCompanies)} size="sm" />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+                <span>Proyectos activos</span>
+                <span>
+                  {usage.activeProjects}
+                  {usage.limits.maxActiveProjects !== null ? ` / ${usage.limits.maxActiveProjects}` : ""}
+                </span>
+              </div>
+              <ProgressBar value={usagePct(usage.activeProjects, usage.limits.maxActiveProjects)} size="sm" />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+                <span>Asientos</span>
+                <span>
+                  {usage.seats}
+                  {usage.limits.maxSeats !== null ? ` / ${usage.limits.maxSeats}` : ""}
+                </span>
+              </div>
+              <ProgressBar value={usagePct(usage.seats, usage.limits.maxSeats)} size="sm" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {canManage && (
         <Card>

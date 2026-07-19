@@ -8,6 +8,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label, Select } from "@/components/ui/input";
+import { ActionForm } from "@/components/ui/action-form";
 import type { GoalRow, OkrRow, KeyResultRow, ProjectRow } from "@/lib/types";
 import { priorityLabel } from "@/lib/utils";
 
@@ -196,7 +197,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
         <Card className="h-fit">
           <CardContent className="pt-4">
             <h3 className="mb-3 text-sm font-semibold">Nuevo proyecto</h3>
-            <form action={createProject} className="space-y-3">
+            <ActionForm action={createProject} className="space-y-3">
               <input type="hidden" name="company_id" value={id} />
               <div>
                 <Label htmlFor="p-name">Nombre</Label>
@@ -237,7 +238,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
               <Button type="submit" className="w-full">
                 Crear proyecto
               </Button>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
       </section>

@@ -1,6 +1,6 @@
 ---
 tipo: dev-bitacora
-actualizado: 2026-07-19
+actualizado: 2026-07-19 (freemium+onboarding)
 ---
 
 # Bitácora de cambios — Centro de Comando
@@ -120,3 +120,35 @@ Lógica de invitación con dos ramas: si el correo ya tiene cuenta en Supabase, 
 ### Bug encontrado al limpiar los usuarios de prueba (y arreglado)
 
 `workspace_invitations.invited_by` no tenía `on delete cascade` hacia `auth.users` (a diferencia de todos los demás `owner_id` del esquema, que sí lo tienen) — borrar una cuenta que hubiera invitado a alguien fallaba por violación de FK. Se hubiera manifestado en producción el día que un owner intentara borrar su cuenta después de haber invitado gente. Arreglado en `supabase/migrations/0005_workspace_invitations_fk_fix.sql` (cambia la constraint a `on delete cascade`).
+
+## 2026-07-19 — Freemium + Onboarding (punto 3 del roadmap SaaS)
+
+Tercera pieza del roadmap SaaS acordado: topes del plan gratuito (empresas/proyectos/asientos + sin IA) y wizard de onboarding que levanta rol/tipo de negocio/reto/objetivo del usuario nuevo.
+
+### Esquema y plan por defecto (`supabase/migrations/0006_plans_and_onboarding.sql`)
+
+`handle_new_user()` (el trigger de auto-provisión de workspace en signup) se modificó para que el workspace de un usuario nuevo **sin invitación pendiente** nazca en `plan = 'free'` en vez de heredar el default de columna `'personal'`. El plan `personal` queda reservado para el workspace que ya existía antes de este cambio (uso interno de Juan Camilo) — no se toca. Tabla nueva `user_profiles` (por usuario, no por workspace, porque cada persona invitada a un workspace compartido completa su propio onboarding): `role`, `business_type`, `main_challenge`, `main_goal`, `onboarding_completed_at`. Backfill: todo usuario que ya existiera antes de esta migración queda con `onboarding_completed_at = now()` para no interrumpirlo con el wizard — verificado explícitamente contra la cuenta real de Juan Camilo después de aplicar la migración (`onboarding_completed_at` seteado, plan `personal` intacto).
+
+### Topes del plan Free
+
+Confirmados con el usuario antes de construir: **1 empresa, 3 proyectos activos, 1 asiento, sin IA**. Config centralizada en `src/lib/plans.ts` (`PLAN_LIMITS` por plan: `personal`/`free`/`pro`/`team`, `null` = sin tope) y enforcement en `src/lib/limits.ts` (`assertCanCreateCompany`, `assertCanCreateProject`, `assertCanInviteMember`, `assertAiEnabled` — cada uno resuelve el workspace actual, calcula el uso real vía `count` de Supabase, y lanza un `Error` con mensaje accionable si se pasa del tope). Enganchado en `createCompany`, `createProject`, `inviteMember` y los tres puntos de entrada de IA (`processIdea`, `refineIdeaProposal`, `generateWeeklyReview`). `seedDefaultCompaniesIfEmpty` (que sembraba Vetshipping/Restaurante/Automatización) ahora solo corre para workspaces `plan = 'personal'` — un workspace Free nuevo arranca vacío, y el onboarding crea su primera (única) empresa real con el nombre que el usuario dio.
+
+Panel de plan visible en `/equipo`: nombre del plan, badge "Sin IA"/"IA incluida", y barra de progreso por empresas/proyectos/asientos usados vs. tope — para que la presión de upgrade sea visible, no solo un error al chocar contra el límite.
+
+### Wizard de onboarding (`/onboarding`, 4 pasos, obligatorio)
+
+Rol → tipo de negocio + nombre del negocio → mayor reto → objetivo con la herramienta. Bloquea el dashboard hasta completarse (gate en `src/proxy.ts`: si el usuario está autenticado y no tiene `user_profiles.onboarding_completed_at`, se redirige a `/onboarding`; si ya lo completó y visita `/onboarding` de nuevo, se redirige de vuelta al dashboard). Al terminar, `completeOnboarding` (`src/actions/onboarding.ts`) guarda el perfil y crea la primera empresa del workspace con el nombre dado en el paso 2.
+
+### Bug sistémico encontrado y arreglado: `<form action={(formData) => startTransition(...)}>` no resuelve
+
+Mientras se probaba el wizard con Playwright, el paso final se quedaba colgado indefinidamente en "Guardando..." — el servidor completaba la Server Action correctamente (200 en los logs) pero el cliente nunca navegaba. Investigando más a fondo (con `page.on("requestfinished")` para inspeccionar la respuesta real en el navegador) apareció el mismo síntoma en los formularios de crear empresa/proyecto e invitar miembro, pero ahí manifestado como que el mensaje de error de tope de plan nunca se mostraba pese a que el servidor sí lanzaba el error (confirmado en logs con status 500).
+
+Causa raíz: el patrón `<form action={(formData) => startTransition(async () => { await miServerAction(formData); ... })}>` — pasarle a la prop `action` de un `<form>` una función cliente que internamente envuelve la Server Action en `startTransition` — deja el estado `isPending` colgado indefinidamente en este entorno (Next.js 16.2.10 + React 19.2.4), tanto cuando la acción resuelve bien como cuando lanza error. El patrón que sí funciona de forma confiable (ya usado y probado en `idea-actions.tsx` y `weekly-review.tsx`) es invocar la Server Action manualmente desde un `onClick`/`onSubmit` normal envuelto en `startTransition`, **sin** pasarla por la prop `action` del `<form>`.
+
+Se encontraron y arreglaron **4 componentes** con el patrón roto (2 preexistentes de antes de esta sesión, no solo el código nuevo de hoy):
+- `src/components/onboarding/onboarding-wizard.tsx` — reescrito para usar un `<form action={completeOnboarding}>` **nativo** (la Server Action directamente como target, sin wrapper cliente) con `redirect("/")` del lado del servidor — el patrón más simple y robusto para el caso de éxito único de este wizard. Estado de "pending" ahora vía `useFormStatus()` en un componente hijo (`SubmitButton`).
+- `src/components/ui/action-form.tsx` (nuevo, de hoy) — reescrito de `action={fn}` a `onSubmit` con `e.preventDefault()` + `startTransition` manual.
+- `src/components/equipo/invite-member-form.tsx` — mismo fix (`onSubmit` en vez de `action`).
+- `src/components/tasks/edit-project-header.tsx` y `src/components/tasks/task-list-item.tsx` (**preexistentes**, de la Fase 1 de edición inline de tareas/proyectos) — tenían el mismo patrón roto. Esto significa que la edición de tareas/proyectos probablemente nunca mostró errores del servidor correctamente desde que se implementó (aunque el caso feliz sin errores parece haber funcionado en las pruebas previas, por eso no se detectó antes) — arreglado con el mismo cambio a `onSubmit`.
+
+Verificado con Playwright de punta a punta con un usuario nuevo real: signup → redirige a onboarding → wizard completo → primera empresa creada con el nombre dado → NO se siembran las 3 empresas demo → revisitar `/onboarding` ya completado redirige al dashboard → crear 2da empresa bloqueada con el mensaje exacto del tope → 3 proyectos activos creados, 4to bloqueado → intentar usar IA bloqueado → panel de plan en `/equipo` muestra "Free"/"Sin IA"/1-1-3-3-1-1 correctamente → invitar 2do miembro bloqueado por tope de asiento. Los 9 checks pasaron. Usuarios y workspaces de prueba (de esta sesión y de la sesión anterior de equipos) limpiados vía Admin API.

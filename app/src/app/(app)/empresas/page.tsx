@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ActionForm } from "@/components/ui/action-form";
 
 export default async function EmpresasPage() {
   const supabase = await createClient();
@@ -43,7 +44,7 @@ export default async function EmpresasPage() {
         <Card className="h-fit">
           <CardContent className="pt-4">
             <h2 className="mb-3 text-sm font-semibold">Nueva empresa</h2>
-            <form action={createCompany} className="space-y-3">
+            <ActionForm action={createCompany} className="space-y-3">
               <div>
                 <Label htmlFor="name">Nombre</Label>
                 <Input id="name" name="name" required placeholder="Ej. Vetshipping" />
@@ -59,7 +60,7 @@ export default async function EmpresasPage() {
               <Button type="submit" className="w-full">
                 Crear empresa
               </Button>
-            </form>
+            </ActionForm>
           </CardContent>
         </Card>
       </div>

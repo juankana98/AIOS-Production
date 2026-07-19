@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai";
 import { logAiUsage } from "@/lib/ai/usage";
+import { assertAiEnabled } from "@/lib/limits";
 import type { ProjectRow, TaskRow, TimeEntryRow } from "@/lib/types";
 
 export async function generateWeeklyReview(companyId: string): Promise<string> {
@@ -11,6 +12,8 @@ export async function generateWeeklyReview(companyId: string): Promise<string> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
+
+  await assertAiEnabled(supabase);
 
   const { data: company } = await supabase.from("companies").select("name").eq("id", companyId).single();
   if (!company) throw new Error("Empresa no encontrada");

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { assertCanCreateCompany } from "@/lib/limits";
+import { getCurrentWorkspace } from "@/lib/workspace";
 
 const DIACRITICS_RE = new RegExp("[\\u0300-\\u036f]", "g");
 
@@ -23,6 +25,8 @@ export async function createCompany(formData: FormData) {
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("El nombre es obligatorio");
+
+  await assertCanCreateCompany(supabase);
 
   const { error } = await supabase.from("companies").insert({
     owner_id: user.id,
@@ -53,6 +57,13 @@ export async function seedDefaultCompaniesIfEmpty() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return;
+
+  // Estas 3 empresas de ejemplo son del uso personal de Juan Camilo — no
+  // tiene sentido sembrarlas para una firma nueva del plan Free (que
+  // además solo permite 1 empresa). Los workspaces nuevos arrancan vacíos;
+  // el onboarding crea su primera empresa real.
+  const workspace = await getCurrentWorkspace(supabase);
+  if (!workspace || workspace.plan !== "personal") return;
 
   const { count } = await supabase
     .from("companies")

@@ -24,21 +24,22 @@ function EditTaskForm({ task, onClose }: { task: TaskRow; onClose: () => void })
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  return (
-    <form
-      action={(formData) =>
-        startTransition(async () => {
-          setError(null);
-          try {
-            await updateTask(formData);
-            onClose();
-          } catch (e) {
-            setError(e instanceof Error ? e.message : "Error actualizando la tarea");
-          }
-        })
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
+      setError(null);
+      try {
+        await updateTask(formData);
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error actualizando la tarea");
       }
-      className="space-y-3 px-4 py-3"
-    >
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 px-4 py-3">
       <input type="hidden" name="task_id" value={task.id} />
       <input type="hidden" name="project_id" value={task.project_id} />
 

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { assertCanInviteMember } from "@/lib/limits";
+import { getPlanLimits, ACTIVE_PROJECT_STATUSES, type PlanLimits } from "@/lib/plans";
 
 export type WorkspaceMemberView = {
   membershipId: string;
@@ -21,28 +23,47 @@ export type WorkspaceInvitationView = {
   expiresAt: string;
 };
 
+export type PlanUsage = {
+  limits: PlanLimits;
+  companies: number;
+  activeProjects: number;
+  seats: number;
+};
+
 export async function getWorkspaceTeamData(): Promise<{
   workspace: Awaited<ReturnType<typeof getCurrentWorkspace>>;
   members: WorkspaceMemberView[];
   invitations: WorkspaceInvitationView[];
+  usage: PlanUsage | null;
 }> {
   const supabase = await createClient();
   const workspace = await getCurrentWorkspace(supabase);
-  if (!workspace) return { workspace: null, members: [], invitations: [] };
+  if (!workspace) return { workspace: null, members: [], invitations: [], usage: null };
 
-  const [{ data: memberRows }, { data: invitationRows }] = await Promise.all([
-    supabase
-      .from("workspace_members")
-      .select("id, user_id, role, created_at")
-      .eq("workspace_id", workspace.id)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("workspace_invitations")
-      .select("id, email, role, created_at, expires_at")
-      .eq("workspace_id", workspace.id)
-      .is("accepted_at", null)
-      .order("created_at", { ascending: false }),
-  ]);
+  const [{ data: memberRows }, { data: invitationRows }, { count: companiesCount }, { count: projectsCount }] =
+    await Promise.all([
+      supabase
+        .from("workspace_members")
+        .select("id, user_id, role, created_at")
+        .eq("workspace_id", workspace.id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("workspace_invitations")
+        .select("id, email, role, created_at, expires_at")
+        .eq("workspace_id", workspace.id)
+        .is("accepted_at", null)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("companies")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspace.id)
+        .eq("is_archived", false),
+      supabase
+        .from("projects")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspace.id)
+        .in("status", ACTIVE_PROJECT_STATUSES),
+    ]);
 
   // auth.users no es consultable con la anon key — se resuelven los emails
   // de los miembros con la Admin API (service role, solo server-side).
@@ -68,7 +89,14 @@ export async function getWorkspaceTeamData(): Promise<{
     expiresAt: i.expires_at,
   }));
 
-  return { workspace, members, invitations };
+  const usage: PlanUsage = {
+    limits: getPlanLimits(workspace.plan),
+    companies: companiesCount ?? 0,
+    activeProjects: projectsCount ?? 0,
+    seats: members.length,
+  };
+
+  return { workspace, members, invitations, usage };
 }
 
 export async function inviteMember(formData: FormData) {
@@ -87,6 +115,8 @@ export async function inviteMember(formData: FormData) {
   if (workspace.role !== "owner" && workspace.role !== "admin") {
     throw new Error("Solo el owner o un admin del workspace pueden invitar miembros");
   }
+
+  await assertCanInviteMember(supabase);
 
   const admin = createAdminClient();
 

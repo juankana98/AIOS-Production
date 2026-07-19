@@ -34,6 +34,8 @@ export async function proxy(request: NextRequest) {
 
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login");
   const isAuthCallback = request.nextUrl.pathname.startsWith("/auth");
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api");
+  const isOnboardingRoute = request.nextUrl.pathname.startsWith("/onboarding");
 
   if (!user && !isAuthRoute && !isAuthCallback) {
     const url = request.nextUrl.clone();
@@ -45,6 +47,34 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
+  }
+
+  if (user && !isAuthCallback && !isApiRoute && !isOnboardingRoute) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("onboarding_completed_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!profile?.onboarding_completed_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  if (user && isOnboardingRoute) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("onboarding_completed_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (profile?.onboarding_completed_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;

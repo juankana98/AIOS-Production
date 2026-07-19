@@ -16,21 +16,26 @@ export function InviteMemberForm() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    startTransition(async () => {
+      setError(null);
+      setMessage(null);
+      try {
+        const res = await inviteMember(formData);
+        setMessage(RESULT_MESSAGE[res.mode] ?? "Listo.");
+        form.reset();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error invitando al miembro");
+      }
+    });
+  }
+
   return (
     <form
-      action={(formData) =>
-        startTransition(async () => {
-          setError(null);
-          setMessage(null);
-          try {
-            const res = await inviteMember(formData);
-            setMessage(RESULT_MESSAGE[res.mode] ?? "Listo.");
-            (document.getElementById("invite-form") as HTMLFormElement | null)?.reset();
-          } catch (e) {
-            setError(e instanceof Error ? e.message : "Error invitando al miembro");
-          }
-        })
-      }
+      onSubmit={handleSubmit}
       id="invite-form"
       className="flex flex-col gap-3 sm:flex-row sm:items-end"
     >

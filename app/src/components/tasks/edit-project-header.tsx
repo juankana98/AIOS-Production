@@ -15,20 +15,24 @@ export function EditProjectHeader({ project }: { project: ProjectRow }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
+      setError(null);
+      try {
+        await updateProject(formData);
+        setEditing(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error actualizando el proyecto");
+      }
+    });
+  }
+
   if (editing) {
     return (
       <form
-        action={(formData) =>
-          startTransition(async () => {
-            setError(null);
-            try {
-              await updateProject(formData);
-              setEditing(false);
-            } catch (e) {
-              setError(e instanceof Error ? e.message : "Error actualizando el proyecto");
-            }
-          })
-        }
+        onSubmit={handleSubmit}
         className="space-y-3 rounded-lg border border-teal-200 bg-teal-50/50 p-4 dark:border-teal-950 dark:bg-teal-950/10"
       >
         <input type="hidden" name="project_id" value={project.id} />

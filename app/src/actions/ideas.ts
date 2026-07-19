@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai";
 import { REASONING_TIERS, type ReasoningTier } from "@/lib/ai/models";
 import { logAiUsage } from "@/lib/ai/usage";
+import { assertAiEnabled } from "@/lib/limits";
 import type { AiIdeaProposal } from "@/lib/types";
 
 function parseTier(tier: string | undefined): ReasoningTier | undefined {
@@ -36,6 +37,8 @@ export async function processIdea(ideaId: string, tier?: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
+
+  await assertAiEnabled(supabase);
 
   const { data: idea } = await supabase.from("idea_inbox").select("raw_text").eq("id", ideaId).single();
   if (!idea) throw new Error("Idea no encontrada");
@@ -75,6 +78,8 @@ export async function refineIdeaProposal(ideaId: string, feedback: string, tier?
 
   const trimmedFeedback = feedback.trim();
   if (!trimmedFeedback) throw new Error("Escribe qué quieres ajustar antes de enviar");
+
+  await assertAiEnabled(supabase);
 
   const { data: idea } = await supabase
     .from("idea_inbox")

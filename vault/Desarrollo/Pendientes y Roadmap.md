@@ -11,8 +11,8 @@ Ver [[Estado Actual]] para qué ya existe. Esta página se actualiza in-place: m
 
 1. [x] **Costos** — monitoreo de tokens/costo real por llamada de IA (`ai_usage_log`, página `/uso-ia`). Completado 2026-07-19.
 2. [x] **Arquitectura de equipos/workspace** — todo lo que colgaba de `owner_id` (single-owner) ahora cuelga además de `workspace_id`, con RLS por membresía de equipo (owner/admin/member) y página `/equipo` para invitar/gestionar. Billing queda listo para ser por workspace, no por usuario. Completado 2026-07-19, ver [[Bitácora de cambios#2026-07-19 — Arquitectura de equipos/workspace (punto 2 del roadmap SaaS)]].
-3. [ ] **Freemium + Onboarding** — gating de funciones de IA (y otros topes: empresas/proyectos/asientos, por decidir con datos reales de costo) para el plan gratuito; flujo de onboarding que levante rol/retos/objetivos del usuario nuevo. **No iniciado**, siguiente paso del roadmap.
-4. [ ] **Landing page + registro público** — página de marketing y flujo de signup pulido para AIOS. **No iniciado**, se beneficia de tener pricing definido primero.
+3. [x] **Freemium + Onboarding** — plan Free (1 empresa, 3 proyectos activos, 1 asiento, sin IA) para signups públicos nuevos; wizard de onboarding obligatorio de 4 pasos (rol, negocio, reto, objetivo) que crea la primera empresa del usuario. Completado 2026-07-19, ver [[Bitácora de cambios#2026-07-19 — Freemium + Onboarding (punto 3 del roadmap SaaS)]].
+4. [ ] **Landing page + registro público** — página de marketing y flujo de signup pulido para AIOS. **No iniciado**, siguiente paso del roadmap — se beneficia de tener pricing definido primero (con datos reales de `/uso-ia` y los topes ya en producción).
 
 ## Roadmap original (fases, ver `CLAUDE.md` raíz) — todas completadas para uso personal
 
@@ -39,7 +39,10 @@ Ver [[Estado Actual]] para qué ya existe. Esta página se actualiza in-place: m
 - **`ai_usage_log`/`daily_capacity` no tienen límite de retención** — crecerán indefinidamente; no urgente a este volumen, pero antes de Fase SaaS vale la pena decidir una política (ej. agregación mensual + purga de detalle viejo).
 - **`getCurrentWorkspace()` es v1: un solo workspace por usuario** (toma la primera membresía por `created_at`). Si en algún momento se permite pertenecer a varios workspaces a la vez (ej. alguien que colabora en dos empresas), hace falta un selector de workspace activo (cookie/sesión) — hoy no existe.
 - **La página `/equipo` no tiene UI para transferir ownership** ni para que un `member` se salga voluntariamente del workspace (la policy de RLS ya lo permite — `owner_or_self_can_delete_members` —, falta el botón).
+- **No hay flujo de upgrade de plan real** — el panel de `/equipo` muestra el tope alcanzado y el mensaje "Actualiza tu plan", pero no hay botón/checkout que efectivamente cambie `workspaces.plan`. Depende del punto 4 del roadmap (landing + pricing) y de elegir un proveedor de billing (Stripe u otro) — no decidido todavía.
+- **Revisar el resto de la app por el mismo patrón roto** `<form action={(fd) => startTransition(...)}>` (ver nota en [[Estado Actual#Convención de formularios con Server Actions (importante — bug real ya encontrado dos veces)]]) — ya se arreglaron los 4 casos conocidos (onboarding, invitar miembro, editar tarea, editar proyecto), pero no se hizo un grep exhaustivo de *todo* el árbol de componentes por si queda alguno más con una variante ligeramente distinta del mismo patrón.
+- **Onboarding no tiene manejo de error visible en el cliente** — al pasar a `<form action={completeOnboarding}>` nativo con `redirect()` del lado del servidor (para evitar el bug de arriba), se perdió el `try/catch` que mostraba mensajes de validación bonitos en el wizard. El caso "faltan campos" casi nunca debería dispararse porque el wizard ya valida antes de dejar avanzar de paso, pero si pasa, hoy se ve la pantalla de error genérica de Next en vez de un mensaje inline.
 
 ## Ideas mencionadas en conversación, sin decidir todavía
 
-- Topes exactos del plan freemium más allá de "sin IA" (número de empresas/proyectos/asientos) — el usuario confirmó que quiere topes adicionales pero no los específicos; se propusieron valores por defecto (1 empresa, 3 proyectos activos, 1 asiento) pendientes de validar con el usuario cuando se llegue al punto 3 del roadmap SaaS.
+(vacío — los topes del plan Free ya se confirmaron y están en producción, ver Estado Actual)
