@@ -1,11 +1,25 @@
 ---
 tipo: dev-decisiones
-actualizado: 2026-07-13
+actualizado: 2026-07-19
 ---
 
-# Decisiones de Arquitectura — Centro de Comando
+# Decisiones de Arquitectura — Centro de Comando (AIOS)
 
 Cada decisión con su porqué. Ver [[Estado Actual]] para el snapshot vivo, [[Bitácora de cambios]] para cuándo se tomó cada una.
+
+## Rumbo SaaS (2026-07-19)
+
+- **Secuencia: costos → equipos/workspace → freemium/onboarding → landing+registro.** El usuario propuso varios frentes a la vez (landing, registro, onboarding, monitoreo de costos, equipos, freemium); se acordó este orden explícitamente antes de escribir código porque el modelo de datos actual (single-owner, `owner_id` en cada tabla) tendría que rediseñarse para equipos — mejor tener el costo real por usuario ya medido (para poder poner precio con criterio) antes de meterse a esa migración, y tener la arquitectura de equipos lista antes de construir freemium/onboarding/landing encima.
+- **Billing por workspace/equipo, no por usuario individual** (estilo Slack/Notion/Linear): un plan paga por el equipo completo con N asientos incluidos, asientos adicionales tienen costo extra. Implica que el futuro modelo de datos necesita una entidad `organization`/`workspace` como unidad de facturación, no solo de agrupación.
+- **Freemium limita IA *y* otras cosas** (no solo "sin funciones de IA") — el usuario confirmó que además de quitar el agente de IA, el plan gratuito debe topar cosas como número de empresas/proyectos/asientos, para dar más razón de upgrade. Los topes exactos quedaron pendientes de definir (ver [[Pendientes y Roadmap]]).
+- **Nombre de marca: AIOS.** Se preguntó explícitamente si mantener "Centro de Comando" (nombre interno, en español, tono personal) o usar un nombre distinto de cara al público; el usuario confirmó adoptar "AIOS" — que ya era el slug del proyecto en Vercel desde el principio, así que probablemente ya lo tenía en mente. Aplicado en título de la app, sidebar, login. "Centro de Comando" queda como sub-marca/descripción, no se borró del todo.
+- **Monitoreo de costos vive en la capa de `AIProvider`, no en cada Server Action por separado.** Se cambió la interfaz para que `structureIdea`/`refineProposal`/`generateWeeklyReview` devuelvan `{ result, usage }` en vez de solo el resultado — así cualquier action que use el provider obtiene el costo real sin tener que re-implementar el cálculo. OpenRouter devuelve el costo ya calculado (`usage.cost`); para Anthropic directo (actualmente inactivo) se armó una tabla de precios propia porque su API no lo incluye.
+
+## Diseño visual (2026-07-19)
+
+- **Paleta aqua/teal con los valores por defecto de Tailwind, sin tokens de color custom.** El usuario pidió un efecto "tranquilo, tipo agua" — se usó el skill `ui-ux-pro-max` para elegir sistemáticamente en vez de improvisar, y resultó que la paleta recomendada (`teal-700` primario, `cyan-400` de acento) coincide exactamente con la escala `teal`/`cyan` que Tailwind ya trae — no hubo que registrar `@theme` custom, solo reemplazar `indigo-*` por `teal-*` en todo el código. Simplifica mantenimiento futuro: cualquier componente nuevo solo necesita usar las clases `teal-*`/`cyan-*` estándar de Tailwind para quedar on-brand.
+- **Poppins (headings) + Inter (body)** reemplazó a Geist. Inter se eligió sobre la sugerencia original del skill (Open Sans) por su mejor soporte de `tabular-nums`, relevante porque la app está llena de números (dinero, tiempo, %) que necesitan alinearse en columnas.
+- **`.aqua-glow` como utilidad CSS reutilizable**, no un componente — dos manchas radiales muy sutiles (opacity ~15%) en `globals.css`, aplicada solo en login y el layout principal, para que el efecto "agua" esté presente sin volverse ruido visual en pantallas densas de datos (agenda, dashboard).
 
 ## Stack general
 

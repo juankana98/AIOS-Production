@@ -29,7 +29,7 @@ export function EditProjectHeader({ project }: { project: ProjectRow }) {
             }
           })
         }
-        className="space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 dark:border-indigo-900 dark:bg-indigo-900/10"
+        className="space-y-3 rounded-lg border border-teal-200 bg-teal-50/50 p-4 dark:border-teal-950 dark:bg-teal-950/10"
       >
         <input type="hidden" name="project_id" value={project.id} />
         <div>
@@ -95,7 +95,7 @@ export function EditProjectHeader({ project }: { project: ProjectRow }) {
         </button>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <Badge tone="indigo">{priorityLabel(project.priority)}</Badge>
+        <Badge tone="teal">{priorityLabel(project.priority)}</Badge>
         {project.due_on && <Badge tone="slate">Límite: {project.due_on}</Badge>}
         <Badge tone="slate">{project.progress_mode === "auto" ? "% auto (por tareas)" : "% manual"}</Badge>
       </div>

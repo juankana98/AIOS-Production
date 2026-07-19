@@ -1,14 +1,14 @@
 import { HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-type Tone = "slate" | "emerald" | "amber" | "red" | "indigo";
+type Tone = "slate" | "emerald" | "amber" | "red" | "teal";
 
 const toneClasses: Record<Tone, string> = {
-  slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
-  amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
-  red: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
-  indigo: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-400",
+  slate: "bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300",
+  emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300",
+  amber: "bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300",
+  red: "bg-red-100 text-red-700 dark:bg-red-400/10 dark:text-red-300",
+  teal: "bg-teal-100 text-teal-800 dark:bg-teal-400/10 dark:text-teal-300",
 };
 
 export function Badge({

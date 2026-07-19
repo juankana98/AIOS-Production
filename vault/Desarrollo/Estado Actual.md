@@ -1,15 +1,15 @@
 ---
 tipo: dev-estado
-actualizado: 2026-07-14
+actualizado: 2026-07-19
 ---
 
-# Centro de Comando — Estado Actual
+# Centro de Comando (AIOS) — Estado Actual
 
 Snapshot vivo del proyecto. Esta página se **actualiza in-place** (no es cronológica) — para el historial de cómo se llegó hasta acá, ver [[Bitácora de cambios]]. Para el porqué de cada decisión, ver [[Decisiones de Arquitectura]]. Para lo que falta, ver [[Pendientes y Roadmap]].
 
 ## Qué es
 
-Sistema personal de máxima productividad multi-empresa para Juan Camilo (Vetshipping, Restaurante, Automatización & Desarrollo). Contexto de producto completo en `CLAUDE.md` (raíz del repo).
+Sistema de máxima productividad multi-empresa. **Fase actual: uso personal de Juan Camilo** (Vetshipping, Restaurante, Automatización & Desarrollo). **Fase siguiente (en marcha desde 2026-07-19): productizar como SaaS** bajo el nombre de marca **AIOS**, vendido por suscripción mensual (billing por workspace/equipo, freemium con topes en IA y otras cosas). Secuencia acordada: costos → equipos/workspace → freemium/onboarding → landing+registro. Contexto de producto completo en `CLAUDE.md` (raíz del repo).
 
 ## Infraestructura viva
 
@@ -27,6 +27,10 @@ Variables de entorno viven en `app/.env.local` (local, gitignored) y en Vercel (
 ## Stack
 
 Next.js 16 (App Router, Turbopack) · TypeScript · Tailwind CSS 4 (componentes UI hand-rolled, sin shadcn) · Supabase (Postgres + Auth + RLS) · Server Actions (rutas API propias solo para OAuth: `/auth/callback` de Supabase y `/api/google/auth|callback`) · Recharts · @dnd-kit (calendario visual drag-and-drop en `/agenda`) · Anthropic SDK + fetch directo a OpenRouter · Google Calendar API (OAuth, FreeBusy).
+
+## Diseño visual
+
+Sistema de diseño "aqua/calma" definido 2026-07-19 (skill `ui-ux-pro-max`): paleta `teal`/`cyan` de Tailwind (sin tokens custom — `teal-700` primario), tipografía Poppins (headings, `font-heading`) + Inter (body), cards `rounded-2xl` con sombra teintada, fondo decorativo `.aqua-glow` (definido en `globals.css`, usado en login y layout principal). Badge tone `indigo` fue renombrado a `teal` — si agregas un componente nuevo, sigue esta paleta, no reintroduzcas `indigo-*`.
 
 ## IA — proveedor y modelos activos
 
@@ -55,6 +59,7 @@ Detalle de la comparación (incluyendo Opus 4.8 vs GPT-5.1 cabeza a cabeza) en [
 - Agente de IA idea→estructura: propone proyecto/tareas/KPIs desde texto libre, con **iteración por feedback** (ajusta la propuesta existente en vez de regenerar desde cero) y selector de nivel de razonamiento
 - Sync Supabase → Markdown (`obsidian-sync/`) hacia las carpetas `Empresas/`, `Proyectos/`, `OKRs/`, `Ideas/`, `Daily Notes/` de este vault
 - Este vault, siguiendo el patrón LLM Wiki (ver `vault/CLAUDE.md`)
+- **Monitoreo de costos de IA** (`/uso-ia`): cada llamada a `AIProvider` loguea proveedor/modelo/tokens/costo real en `ai_usage_log` — costo de hoy/semana/mes, proyección mensual, desglose por función/modelo. Base para fijar el precio de la membresía SaaS.
 
 ## Cuentas y accesos relevantes
 
@@ -68,4 +73,6 @@ Todo el cálculo de "hoy" y horario laboral usa un offset fijo de Colombia (`-05
 
 ## Última verificación end-to-end
 
-2026-07-14: flujo completo probado con Playwright contra producción y local — signup → dashboard con siembra de empresas → proyecto → tarea → agenda automática → drag-and-drop en calendario visual → conexión real de Google Calendar (cuenta real del usuario, no mock) → panel de capacidad verificado contra la API de Google directamente → edición de proyecto y tarea. Sin errores de consola reales.
+2026-07-19: rediseño visual + monitoreo de costos probados con Playwright en light/dark mode (Dashboard, Proyectos, Agenda, Ideas, Uso & Costos) y flujo completo de IA de nuevo sin regresiones — llamada real registrada en `/uso-ia` con costo y tokens correctos. Sin errores de consola reales.
+
+Verificación previa (2026-07-14): signup → dashboard con siembra de empresas → proyecto → tarea → agenda automática → drag-and-drop en calendario visual → conexión real de Google Calendar (cuenta real del usuario, no mock) → panel de capacidad verificado contra la API de Google directamente → edición de proyecto y tarea.

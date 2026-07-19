@@ -94,7 +94,7 @@ export default async function DashboardPage() {
           <CardContent>
             <p className="text-2xl font-semibold">{priorityTasks.length}</p>
             <p className="text-xs text-slate-500">
-              <Link href="/agenda" className="text-indigo-600 hover:underline dark:text-indigo-400">
+              <Link href="/agenda" className="text-teal-700 hover:underline dark:text-teal-400">
                 generar agenda del día →
               </Link>
             </p>
@@ -129,7 +129,7 @@ export default async function DashboardPage() {
             {companies.length === 0 && (
               <p className="text-sm text-slate-500">
                 Aún no hay empresas.{" "}
-                <Link href="/empresas" className="text-indigo-600 hover:underline dark:text-indigo-400">
+                <Link href="/empresas" className="text-teal-700 hover:underline dark:text-teal-400">
                   Crea la primera →
                 </Link>
               </p>
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
                   <div>
                     <p className="text-sm font-medium">{task.title}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <Badge tone="indigo">{quadrantLabel(eisenhowerQuadrant(task))}</Badge>
+                      <Badge tone="teal">{quadrantLabel(eisenhowerQuadrant(task))}</Badge>
                       {task.estimated_minutes && (
                         <Badge tone="slate">{formatMinutes(task.estimated_minutes)}</Badge>
                       )}
@@ -159,7 +159,7 @@ export default async function DashboardPage() {
               {priorityTasks.length === 0 && (
                 <p className="px-4 py-6 text-sm text-slate-500">
                   No hay tareas pendientes. Crea proyectos y tareas, o tira una idea a la IA en{" "}
-                  <Link href="/ideas" className="text-indigo-600 hover:underline dark:text-indigo-400">
+                  <Link href="/ideas" className="text-teal-700 hover:underline dark:text-teal-400">
                     /ideas
                   </Link>
                   .

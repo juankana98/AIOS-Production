@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f0fdfa;
+  --foreground: #0f172a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #071a1a;
+    --foreground: #ecfeff;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-heading {
+  font-family: var(--font-heading), var(--font-body), sans-serif;
+}
+
+/* Fondo decorativo tipo "agua en calma" — un degradado suave con dos manchas
+   aqua/cyan muy sutiles, usado en pantallas de entrada (login) y como acento
+   opcional detrás de secciones destacadas. Nunca compite con el contenido. */
+.aqua-glow {
+  position: relative;
+  isolation: isolate;
+}
+.aqua-glow::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(40% 35% at 15% 15%, rgba(20, 184, 166, 0.16), transparent 70%),
+    radial-gradient(35% 40% at 85% 80%, rgba(34, 211, 238, 0.14), transparent 70%);
+  filter: blur(40px);
+}
+@media (prefers-color-scheme: dark) {
+  .aqua-glow::before {
+    background:
+      radial-gradient(40% 35% at 15% 15%, rgba(45, 212, 191, 0.18), transparent 70%),
+      radial-gradient(35% 40% at 85% 80%, rgba(34, 211, 238, 0.16), transparent 70%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

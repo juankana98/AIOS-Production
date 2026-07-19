@@ -57,7 +57,7 @@ export default async function IdeasPage() {
               </div>
 
               {idea.ai_proposal && (
-                <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3 text-sm dark:border-indigo-900/40 dark:bg-indigo-900/10">
+                <div className="rounded-lg border border-teal-100 bg-teal-50/60 p-3 text-sm dark:border-teal-950/40 dark:bg-teal-950/10">
                   <p className="mb-1 font-medium">
                     {idea.ai_proposal.kind === "project"
                       ? `Proyecto: ${idea.ai_proposal.project?.name || "(sin título propuesto)"}`

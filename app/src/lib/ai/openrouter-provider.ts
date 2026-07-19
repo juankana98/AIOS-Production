@@ -1,4 +1,11 @@
-import type { AIProvider, RefineProposalInput, StructureIdeaInput, WeeklyReviewInput } from "@/lib/ai/provider";
+import type {
+  AIProvider,
+  AiUsage,
+  RefineProposalInput,
+  StructureIdeaInput,
+  WeeklyReviewInput,
+  WithUsage,
+} from "@/lib/ai/provider";
 import { REFINE_PROPOSAL_SYSTEM, STRUCTURE_IDEA_SYSTEM, WEEKLY_REVIEW_SYSTEM } from "@/lib/ai/prompts";
 import { DEFAULT_TIER, REASONING_TIERS, type ReasoningTier } from "@/lib/ai/models";
 import type { AiIdeaProposal } from "@/lib/types";
@@ -16,6 +23,23 @@ function extractJson(content: string): unknown {
   return JSON.parse(fenced ? fenced[1] : content);
 }
 
+type OpenRouterResponse = {
+  choices?: { message?: { content?: string } }[];
+  model?: string;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+};
+
+function usageFrom(model: string, data: OpenRouterResponse): AiUsage {
+  return {
+    provider: "openrouter",
+    model: data.model || model,
+    inputTokens: data.usage?.prompt_tokens ?? 0,
+    outputTokens: data.usage?.completion_tokens ?? 0,
+    // OpenRouter ya calcula el costo real (incluye su margen) — no hay que estimarlo a mano.
+    costUsd: data.usage?.cost ?? 0,
+  };
+}
+
 /**
  * Fase 2 (multi-usuario): implementación equivalente a AnthropicProvider pero
  * vía OpenRouter (API compatible con OpenAI), para cuando la app deje de ser
@@ -25,20 +49,25 @@ function extractJson(content: string): unknown {
 export class OpenRouterProvider implements AIProvider {
   constructor(private apiKey: string) {}
 
-  private async chat(body: Record<string, unknown>, model: string = MODEL) {
+  private async chat(body: Record<string, unknown>, model: string = MODEL): Promise<OpenRouterResponse> {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ model, ...body }),
+      body: JSON.stringify({ model, usage: { include: true }, ...body }),
     });
     if (!res.ok) throw new Error(`OpenRouter error ${res.status}: ${await res.text()}`);
     return res.json();
   }
 
-  private async askForProposal(system: string, userContent: string, tier?: ReasoningTier): Promise<AiIdeaProposal> {
+  private async askForProposal(
+    system: string,
+    userContent: string,
+    tier?: ReasoningTier
+  ): Promise<WithUsage<AiIdeaProposal>> {
+    const model = resolveModel(tier);
     const data = await this.chat(
       {
         messages: [
@@ -50,15 +79,15 @@ export class OpenRouterProvider implements AIProvider {
         ],
         response_format: { type: "json_object" },
       },
-      resolveModel(tier)
+      model
     );
 
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error("La IA no devolvió contenido");
-    return extractJson(content) as AiIdeaProposal;
+    return { result: extractJson(content) as AiIdeaProposal, usage: usageFrom(model, data) };
   }
 
-  async structureIdea(input: StructureIdeaInput): Promise<AiIdeaProposal> {
+  async structureIdea(input: StructureIdeaInput): Promise<WithUsage<AiIdeaProposal>> {
     const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
 
     return this.askForProposal(
@@ -68,7 +97,7 @@ export class OpenRouterProvider implements AIProvider {
     );
   }
 
-  async refineProposal(input: RefineProposalInput): Promise<AiIdeaProposal> {
+  async refineProposal(input: RefineProposalInput): Promise<WithUsage<AiIdeaProposal>> {
     const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
 
     return this.askForProposal(
@@ -78,13 +107,13 @@ export class OpenRouterProvider implements AIProvider {
     );
   }
 
-  async generateWeeklyReview(input: WeeklyReviewInput): Promise<string> {
+  async generateWeeklyReview(input: WeeklyReviewInput): Promise<WithUsage<string>> {
     const data = await this.chat({
       messages: [
         { role: "system", content: WEEKLY_REVIEW_SYSTEM },
         { role: "user", content: JSON.stringify(input, null, 2) },
       ],
     });
-    return data.choices?.[0]?.message?.content ?? "";
+    return { result: data.choices?.[0]?.message?.content ?? "", usage: usageFrom(MODEL, data) };
   }
 }

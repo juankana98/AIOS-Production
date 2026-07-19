@@ -182,7 +182,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                   <CardContent className="py-3">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-sm font-medium">{p.name}</span>
-                      <Badge tone="indigo">{priorityLabel(p.priority)}</Badge>
+                      <Badge tone="teal">{priorityLabel(p.priority)}</Badge>
                     </div>
                     <p className="mb-2 text-xs text-slate-500">{p.expected_outcome}</p>
                     <ProgressBar value={p.progress_pct} size="sm" />

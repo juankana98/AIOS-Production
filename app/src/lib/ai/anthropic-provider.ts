@@ -1,5 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { AIProvider, RefineProposalInput, StructureIdeaInput, WeeklyReviewInput } from "@/lib/ai/provider";
+import type {
+  AIProvider,
+  AiUsage,
+  RefineProposalInput,
+  StructureIdeaInput,
+  WeeklyReviewInput,
+  WithUsage,
+} from "@/lib/ai/provider";
 import { REFINE_PROPOSAL_SYSTEM, STRUCTURE_IDEA_SYSTEM, WEEKLY_REVIEW_SYSTEM } from "@/lib/ai/prompts";
 import { DEFAULT_TIER, REASONING_TIERS, type ReasoningTier } from "@/lib/ai/models";
 import type { AiIdeaProposal } from "@/lib/types";
@@ -8,6 +15,33 @@ const MODEL = process.env.ANTHROPIC_MODEL || REASONING_TIERS[DEFAULT_TIER].anthr
 
 function resolveModel(tier?: ReasoningTier): string {
   return tier ? REASONING_TIERS[tier].anthropicModel : MODEL;
+}
+
+// Anthropic no devuelve costo en la respuesta (a diferencia de OpenRouter) —
+// se calcula a mano. $/millón de tokens, mismos precios que Anthropic publica
+// para estos modelos (verificado contra el catálogo de OpenRouter).
+const ANTHROPIC_PRICING_PER_MILLION: Record<string, { input: number; output: number }> = {
+  "claude-opus-4-8": { input: 5, output: 25 },
+  "claude-sonnet-5": { input: 2, output: 10 },
+  "claude-haiku-4-5-20251001": { input: 1, output: 5 },
+};
+
+function computeAnthropicCost(model: string, inputTokens: number, outputTokens: number): number {
+  const pricing = ANTHROPIC_PRICING_PER_MILLION[model];
+  if (!pricing) return 0;
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+}
+
+function usageFrom(model: string, response: Anthropic.Message): AiUsage {
+  const inputTokens = response.usage.input_tokens;
+  const outputTokens = response.usage.output_tokens;
+  return {
+    provider: "anthropic",
+    model,
+    inputTokens,
+    outputTokens,
+    costUsd: computeAnthropicCost(model, inputTokens, outputTokens),
+  };
 }
 
 const PROPOSE_STRUCTURE_TOOL: Anthropic.Tool = {
@@ -73,9 +107,10 @@ export class AnthropicProvider implements AIProvider {
     system: string,
     userContent: string,
     tier?: ReasoningTier
-  ): Promise<AiIdeaProposal> {
+  ): Promise<WithUsage<AiIdeaProposal>> {
+    const model = resolveModel(tier);
     const response = await this.client.messages.create({
-      model: resolveModel(tier),
+      model,
       max_tokens: 2000,
       system,
       tools: [PROPOSE_STRUCTURE_TOOL],
@@ -88,10 +123,10 @@ export class AnthropicProvider implements AIProvider {
       throw new Error("La IA no devolvió una propuesta estructurada");
     }
 
-    return toolUse.input as AiIdeaProposal;
+    return { result: toolUse.input as AiIdeaProposal, usage: usageFrom(model, response) };
   }
 
-  async structureIdea(input: StructureIdeaInput): Promise<AiIdeaProposal> {
+  async structureIdea(input: StructureIdeaInput): Promise<WithUsage<AiIdeaProposal>> {
     const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
 
     return this.callProposeStructureTool(
@@ -101,7 +136,7 @@ export class AnthropicProvider implements AIProvider {
     );
   }
 
-  async refineProposal(input: RefineProposalInput): Promise<AiIdeaProposal> {
+  async refineProposal(input: RefineProposalInput): Promise<WithUsage<AiIdeaProposal>> {
     const companiesList = input.companies.map((c) => `- ${c.name} (slug: ${c.slug})`).join("\n");
 
     return this.callProposeStructureTool(
@@ -111,7 +146,7 @@ export class AnthropicProvider implements AIProvider {
     );
   }
 
-  async generateWeeklyReview(input: WeeklyReviewInput): Promise<string> {
+  async generateWeeklyReview(input: WeeklyReviewInput): Promise<WithUsage<string>> {
     const response = await this.client.messages.create({
       model: MODEL,
       max_tokens: 500,
@@ -125,6 +160,7 @@ export class AnthropicProvider implements AIProvider {
     });
 
     const textBlock = response.content.find((b) => b.type === "text");
-    return textBlock && textBlock.type === "text" ? textBlock.text : "";
+    const text = textBlock && textBlock.type === "text" ? textBlock.text : "";
+    return { result: text, usage: usageFrom(MODEL, response) };
   }
 }

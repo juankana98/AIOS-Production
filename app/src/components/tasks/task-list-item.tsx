@@ -127,7 +127,7 @@ export function TaskListItem({ task }: { task: TaskRow }) {
           {task.title}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          <Badge tone="indigo">{quadrantLabel(eisenhowerQuadrant(task))}</Badge>
+          <Badge tone="teal">{quadrantLabel(eisenhowerQuadrant(task))}</Badge>
           {task.estimated_minutes && <Badge tone="slate">est. {formatMinutes(task.estimated_minutes)}</Badge>}
           {task.actual_minutes > 0 && <Badge tone="slate">real {formatMinutes(task.actual_minutes)}</Badge>}
         </div>

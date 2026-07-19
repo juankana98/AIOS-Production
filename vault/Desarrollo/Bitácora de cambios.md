@@ -72,3 +72,25 @@ El usuario reportó que "Generar agenda del día" siempre programaba las tareas 
 Fix en `src/actions/schedule.ts`: si `dateISO` corresponde a hoy, el inicio efectivo de la ventana se ajusta a `max(8am, ahora redondeado al siguiente slot de 15 min)` antes de calcular huecos libres. Para días futuros el comportamiento no cambia (usa el horario laboral completo). Si ya pasaron las 7pm al generar la agenda de hoy, no agenda nada (ventana vacía) en vez de fallar.
 
 Verificado en vivo: generando a las 12:48pm, la primera tarea quedó agendada a la 1:00pm (siguiente slot de 15 min), no a las 8am.
+
+## 2026-07-19 — Arranca la fase SaaS: monitoreo de costos de IA + rediseño visual completo
+
+El usuario planteó el objetivo de negocio explícito: el sistema debe funcionar primero para uso personal, pero la intención es venderlo después como SaaS por suscripción mensual (landing page, registro, onboarding con levantamiento de perfil de usuario, equipos de trabajo, freemium sin IA). Dado que el modelo de datos actual es 100% single-owner y tocar eso mal habría significado rehacer trabajo caro, se acordó una secuencia con el usuario antes de escribir código: **costos primero → arquitectura de equipos/workspace → freemium/onboarding → landing+registro**. Decisiones confirmadas: billing por workspace/equipo (estilo Slack, no por usuario individual), freemium con tope en IA *y* en otras cosas (empresas/proyectos/asientos — no solo "sin IA"), nombre de marca de cara al público: **AIOS** (se adoptó el nombre que ya estaba en el slug de Vercel).
+
+Esta entrada cubre la primera pieza de esa secuencia (monitoreo de costos) más un pedido en paralelo del usuario (rediseño visual) que no formaba parte del plan SaaS pero se atendió en la misma sesión.
+
+### Monitoreo de tokens/costo de IA
+Necesario para poder fijar el precio de la membresía con datos reales, no una corazonada. Se instrumentó `AIProvider` para que cada método (`structureIdea`, `refineProposal`, `generateWeeklyReview`) devuelva `{ result, usage }` en vez de solo el resultado — `usage` trae proveedor, modelo, tokens de entrada/salida y costo en USD:
+- **OpenRouter** (el proveedor activo) ya devuelve el costo real calculado por ellos mismos en `usage.cost` — no hay que estimarlo.
+- **Anthropic directo** no devuelve costo, así que se armó una tabla de precios propia por modelo (`ANTHROPIC_PRICING_PER_MILLION` en `anthropic-provider.ts`), usando los mismos precios verificados en el catálogo de OpenRouter.
+
+Cada llamada se loguea en la tabla nueva `ai_usage_log` (RLS, non-blocking igual que `daily_capacity` — un fallo de logging nunca debe tumbar la función real) desde las server actions (`ideas.ts`, `reports.ts`). Nueva página `/uso-ia` — "Uso & Costos" — muestra costo de hoy/7 días/mes, proyección mensual extrapolada, desglose por función y por modelo, y el detalle de las últimas llamadas. Verificado en vivo con una llamada real: $0.0028, 1589 tokens, modelo `x-ai/grok-4.20`, nivel `medium` — el número apareció correcto en el dashboard de costos en segundos.
+
+### Rediseño visual completo (pedido en paralelo)
+El usuario describió el diseño anterior como "muy básico, plano, no estético" y pidió algo elegante con un efecto "tranquilo, tipo agua". Se usó el skill `ui-ux-pro-max` para generar un sistema de diseño en vez de improvisar colores:
+- **Paleta**: teal/aqua (`teal-700` #0f766e primario, `teal-500`/`cyan-400` para acentos, fondo `teal-50` muy claro con toques cyan) — literalmente los valores por defecto de la escala `teal`/`cyan` de Tailwind, así que no hizo falta registrar tokens de color custom, solo reemplazar `indigo-*` por `teal-*` en todo el código (barrido automatizado + ajuste manual en los componentes de mayor visibilidad).
+- **Tipografía**: Poppins (headings, vía `next/font/google`) + Inter (body, mejor soporte de `tabular-nums` para los números de dinero/tiempo/% que aparecen por toda la app) — reemplazó a Geist Sans/Mono.
+- **Estilo**: cards `rounded-2xl` con sombra suave teintada (no gris plano), sidebar con blur/glass y branding nuevo ("AIOS" + ícono de olas), fondo decorativo `.aqua-glow` (dos manchas radiales aqua/cyan muy sutiles, solo en login y layout principal) para el efecto "agua en calma" sin volverse ruidoso.
+- Semántica de color (verde/ámbar/rojo del semáforo y estados) se mantuvo intacta — solo cambió el acento de marca, no el significado de los indicadores.
+
+Verificado visualmente con Playwright en light y dark mode, en Dashboard/Proyectos/Agenda/Ideas/Uso & Costos, y funcionalmente probando el flujo completo de IA de nuevo (sin regresiones). Sin errores de consola reales.

@@ -68,7 +68,7 @@ export default async function TiempoPage() {
       ) : (
         <p className="text-sm text-slate-500">
           No hay timer activo. Inicia uno desde una tarea en{" "}
-          <a href="/tareas" className="text-indigo-600 hover:underline dark:text-indigo-400">
+          <a href="/tareas" className="text-teal-700 hover:underline dark:text-teal-400">
             /tareas
           </a>
           .

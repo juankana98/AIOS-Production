@@ -63,7 +63,7 @@ export default async function ProyectosPage() {
                           )}
                           <ProgressBar value={p.progress_pct} size="sm" />
                           <div className="flex items-center justify-between">
-                            <Badge tone="indigo">{priorityLabel(p.priority)}</Badge>
+                            <Badge tone="teal">{priorityLabel(p.priority)}</Badge>
                             <ProjectStatusSelect projectId={p.id} status={p.status} />
                           </div>
                         </CardContent>

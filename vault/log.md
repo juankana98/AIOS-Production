@@ -25,3 +25,5 @@ Registro cronológico append-only. Formato de cada entrada: `## [YYYY-MM-DD] tip
 ## [2026-07-14] dev | Calendario visual + Google Calendar real + capacidad/desempeño + edición de tareas/proyectos + fix de zona horaria — ver Desarrollo/Bitácora de cambios.md
 
 ## [2026-07-19] dev | Fix: "Generar agenda del día" ignoraba la hora actual y agendaba desde las 8am aunque ya fuera medio día — ahora arranca desde ahora (redondeado a 15 min) cuando se genera la agenda de hoy
+
+## [2026-07-19] dev | Arranca fase SaaS: monitoreo de costos de IA (ai_usage_log, /uso-ia) + rediseño visual completo (paleta aqua/teal, marca AIOS) — ver Desarrollo/Bitácora de cambios.md

@@ -2,10 +2,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai";
+import { logAiUsage } from "@/lib/ai/usage";
 import type { ProjectRow, TaskRow, TimeEntryRow } from "@/lib/types";
 
 export async function generateWeeklyReview(companyId: string): Promise<string> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
 
   const { data: company } = await supabase.from("companies").select("name").eq("id", companyId).single();
   if (!company) throw new Error("Empresa no encontrada");
@@ -49,11 +54,14 @@ export async function generateWeeklyReview(companyId: string): Promise<string> {
   }
 
   const provider = getAIProvider();
-  return provider.generateWeeklyReview({
+  const { result, usage } = await provider.generateWeeklyReview({
     companyName: company.name,
     projects: projectRows.map((p) => ({ name: p.name, progressPct: p.progress_pct, status: p.status })),
     tasksDoneThisWeek: tasksDone,
     tasksPlannedThisWeek: tasksPlanned,
     hoursLoggedThisWeek: Number(hoursLogged.toFixed(1)),
   });
+  await logAiUsage(supabase, user.id, "weekly_review", undefined, usage);
+
+  return result;
 }

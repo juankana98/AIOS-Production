@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAIProvider } from "@/lib/ai";
 import { REASONING_TIERS, type ReasoningTier } from "@/lib/ai/models";
+import { logAiUsage } from "@/lib/ai/usage";
 import type { AiIdeaProposal } from "@/lib/types";
 
 function parseTier(tier: string | undefined): ReasoningTier | undefined {
@@ -45,11 +46,13 @@ export async function processIdea(ideaId: string, tier?: string) {
 
   try {
     const provider = getAIProvider();
-    const proposal = await provider.structureIdea({
+    const parsedTier = parseTier(tier);
+    const { result: proposal, usage } = await provider.structureIdea({
       rawText: idea.raw_text,
       companies: companies ?? [],
-      tier: parseTier(tier),
+      tier: parsedTier,
     });
+    await logAiUsage(supabase, user.id, "structure_idea", parsedTier, usage);
 
     await supabase
       .from("idea_inbox")
@@ -87,13 +90,15 @@ export async function refineIdeaProposal(ideaId: string, feedback: string, tier?
 
   try {
     const provider = getAIProvider();
-    const proposal = await provider.refineProposal({
+    const parsedTier = parseTier(tier);
+    const { result: proposal, usage } = await provider.refineProposal({
       rawText: idea.raw_text,
       currentProposal: idea.ai_proposal as AiIdeaProposal,
       feedback: trimmedFeedback,
       companies: companies ?? [],
-      tier: parseTier(tier),
+      tier: parsedTier,
     });
+    await logAiUsage(supabase, user.id, "refine_proposal", parsedTier, usage);
 
     await supabase
       .from("idea_inbox")

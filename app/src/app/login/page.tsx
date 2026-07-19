@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Waves } from "lucide-react";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -45,16 +46,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="aqua-glow relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-teal-50 via-white to-cyan-50/50 px-4 dark:from-[#071a1a] dark:via-[#071a1a] dark:to-[#0a2323]">
       <Card className="w-full max-w-sm">
-        <CardContent className="pt-6">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-sm font-bold text-white">
-              CC
+        <CardContent className="pt-8 pb-6">
+          <div className="mb-7 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-lg shadow-teal-900/20">
+              <Waves size={22} strokeWidth={2.25} />
             </div>
-            <h1 className="text-lg font-semibold">Centro de Comando</h1>
-            <p className="text-sm text-slate-500">
-              {mode === "login" ? "Inicia sesión para continuar" : "Crea tu cuenta"}
+            <h1 className="font-heading text-xl font-semibold text-teal-950 dark:text-teal-50">AIOS</h1>
+            <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-teal-600/70 dark:text-teal-400/60">
+              Centro de Comando
+            </p>
+            <p className="mt-3 text-sm text-slate-500 dark:text-teal-100/50">
+              {mode === "login" ? "Inicia sesión para continuar" : "Crea tu cuenta para empezar"}
             </p>
           </div>
 
@@ -84,13 +88,13 @@ export default function LoginPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             {info && <p className="text-sm text-emerald-600">{info}</p>}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
               {loading ? "Cargando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
             </Button>
           </form>
 
           <button
-            className="mt-4 w-full text-center text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            className="mt-5 w-full cursor-pointer text-center text-xs text-slate-500 transition-colors hover:text-teal-700 dark:text-teal-100/40 dark:hover:text-teal-300"
             onClick={() => setMode(mode === "login" ? "signup" : "login")}
           >
             {mode === "login" ? "¿Primera vez? Crea tu cuenta" : "¿Ya tienes cuenta? Inicia sesión"}

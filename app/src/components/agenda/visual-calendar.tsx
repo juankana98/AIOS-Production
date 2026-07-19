@@ -89,10 +89,10 @@ function DraggableTaskBlock({
       style={style}
       className={cn(
         "group absolute left-16 right-2 flex flex-col overflow-hidden rounded-md border px-2 py-1 text-xs shadow-sm transition-shadow",
-        isDragging && "shadow-lg ring-2 ring-indigo-400",
+        isDragging && "shadow-lg ring-2 ring-teal-400",
         done && "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/30",
         skipped && "border-amber-300 bg-amber-50 opacity-60 dark:border-amber-800 dark:bg-amber-900/20",
-        !done && !skipped && block.source === "auto" && "border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/30",
+        !done && !skipped && block.source === "auto" && "border-teal-300 bg-teal-50 dark:border-teal-900 dark:bg-teal-950/30",
         !done && !skipped && block.source === "manual" && "border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900"
       )}
     >
@@ -221,7 +221,7 @@ export function VisualCalendar({
       </DndContext>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm border border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/30" />
+          <span className="h-2.5 w-2.5 rounded-sm border border-teal-300 bg-teal-50 dark:border-teal-900 dark:bg-teal-950/30" />
           Auto-agendado
         </span>
         <span className="flex items-center gap-1">

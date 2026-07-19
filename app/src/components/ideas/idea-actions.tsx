@@ -27,7 +27,7 @@ function TierSelector({ value, onChange }: { value: ReasoningTier; onChange: (t:
             className={cn(
               "rounded px-2.5 py-1 font-medium transition-colors",
               value === tier
-                ? "bg-indigo-600 text-white"
+                ? "bg-teal-700 text-white"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             )}
           >

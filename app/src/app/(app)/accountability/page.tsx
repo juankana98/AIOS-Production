@@ -92,7 +92,7 @@ export default async function AccountabilityPage() {
                 <div key={c.id} className="border-b border-slate-100 pb-2 text-sm last:border-0 dark:border-slate-800">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{c.checkin_date}</span>
-                    {c.score && <Badge tone="indigo">{c.score}/5</Badge>}
+                    {c.score && <Badge tone="teal">{c.score}/5</Badge>}
                   </div>
                   {c.wins && <p className="text-xs text-slate-500">Wins: {c.wins}</p>}
                   {c.blockers && <p className="text-xs text-slate-500">Bloqueos: {c.blockers}</p>}
