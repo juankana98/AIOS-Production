@@ -38,7 +38,6 @@ Ver [[Estado Actual]] para qué ya existe. Esta página se actualiza in-place: m
 - **Confirmar que la Authorized redirect URI de producción de Google está registrada** — probado en local, no verificado explícitamente en producción.
 - **`ai_usage_log`/`daily_capacity` no tienen límite de retención** — crecerán indefinidamente; no urgente a este volumen, pero antes de Fase SaaS vale la pena decidir una política (ej. agregación mensual + purga de detalle viejo).
 - **`getCurrentWorkspace()` es v1: un solo workspace por usuario** (toma la primera membresía por `created_at`). Si en algún momento se permite pertenecer a varios workspaces a la vez (ej. alguien que colabora en dos empresas), hace falta un selector de workspace activo (cookie/sesión) — hoy no existe.
-- **`0005_workspace_invitations_fk_fix.sql` pendiente de ejecutar en Supabase** — corrige que `workspace_invitations.invited_by` no tenía `on delete cascade`, encontrado al limpiar usuarios de prueba del flujo de invitación. Bajo riesgo, pero sin aplicar todavía.
 - **La página `/equipo` no tiene UI para transferir ownership** ni para que un `member` se salga voluntariamente del workspace (la policy de RLS ya lo permite — `owner_or_self_can_delete_members` —, falta el botón).
 
 ## Ideas mencionadas en conversación, sin decidir todavía
