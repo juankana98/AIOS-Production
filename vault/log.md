@@ -27,3 +27,5 @@ Registro cronológico append-only. Formato de cada entrada: `## [YYYY-MM-DD] tip
 ## [2026-07-19] dev | Fix: "Generar agenda del día" ignoraba la hora actual y agendaba desde las 8am aunque ya fuera medio día — ahora arranca desde ahora (redondeado a 15 min) cuando se genera la agenda de hoy
 
 ## [2026-07-19] dev | Arranca fase SaaS: monitoreo de costos de IA (ai_usage_log, /uso-ia) + rediseño visual completo (paleta aqua/teal, marca AIOS) — ver Desarrollo/Bitácora de cambios.md
+
+## [2026-07-19] dev | Arquitectura de equipos/workspace (multi-tenant real, punto 2 del roadmap SaaS): RLS de 15 tablas migrada de owner_id a workspace, página /equipo, invitaciones — ver Desarrollo/Bitácora de cambios.md

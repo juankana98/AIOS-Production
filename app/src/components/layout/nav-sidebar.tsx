@@ -14,6 +14,7 @@ import {
   LogOut,
   CircleDollarSign,
   Waves,
+  Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: "/accountability", label: "Accountability", icon: Target },
   { href: "/ideas", label: "Ideas (IA)", icon: Sparkles },
   { href: "/uso-ia", label: "Uso & Costos", icon: CircleDollarSign },
+  { href: "/equipo", label: "Equipo", icon: Users },
 ];
 
 export function NavSidebar() {

@@ -1,6 +1,6 @@
 ---
 tipo: dev-bitacora
-actualizado: 2026-07-14
+actualizado: 2026-07-19
 ---
 
 # Bitácora de cambios — Centro de Comando
@@ -94,3 +94,29 @@ El usuario describió el diseño anterior como "muy básico, plano, no estético
 - Semántica de color (verde/ámbar/rojo del semáforo y estados) se mantuvo intacta — solo cambió el acento de marca, no el significado de los indicadores.
 
 Verificado visualmente con Playwright en light y dark mode, en Dashboard/Proyectos/Agenda/Ideas/Uso & Costos, y funcionalmente probando el flujo completo de IA de nuevo (sin regresiones). Sin errores de consola reales.
+
+## 2026-07-19 — Arquitectura de equipos/workspace (punto 2 del roadmap SaaS)
+
+Segunda pieza de la secuencia SaaS acordada (ver entrada anterior): migrar el modelo de datos de single-owner (`owner_id = auth.uid()`) a multi-tenant real por equipo, con billing por workspace en vez de por usuario individual — la pieza más grande y de mayor riesgo de todo el roadmap, porque toca RLS de las 15 tablas de negocio a la vez.
+
+### Esquema (`supabase/migrations/0004_workspaces.sql`)
+
+Tablas nuevas: `workspaces` (id/name/slug/plan), `workspace_members` (workspace_id, user_id, role: owner/admin/member), `workspace_invitations` (email, role, token, expira a 14 días). Funciones helper `SECURITY DEFINER` (`current_user_workspace_ids()`, `current_user_role_in()`) para que las policies de RLS puedan consultar la membresía del usuario sin recursión. `default_workspace_id()` se usa como `DEFAULT` de la columna `workspace_id` en cada tabla de negocio — truco clave para que el código de la app existente (que inserta filas sin pasar `workspace_id` explícito) siguiera funcionando sin tocar una sola server action.
+
+Auto-provisión: trigger `on_auth_user_created` (`handle_new_user()`) en `auth.users` — todo usuario nuevo recibe un workspace personal automáticamente, **salvo** que tenga una invitación pendiente esperándolo (en ese caso se une a ese workspace con el rol de la invitación en vez de crear uno propio).
+
+Migración de datos existentes: loop dinámico sobre las 15 tablas de negocio (`companies`, `goals`, `okrs`, `key_results`, `projects`, `kpis`, `kpi_entries`, `tasks`, `time_entries`, `schedule_blocks`, `checkins`, `idea_inbox`, `google_calendar_connections`, `daily_capacity`, `ai_usage_log`) — agrega `workspace_id`, backfillea desde `owner_id` vía `workspace_members`, la vuelve `NOT NULL`, y reemplaza la policy `owner_full_access` por `workspace_member_access` (acceso completo a cualquier fila cuyo `workspace_id` esté entre los workspaces del usuario actual).
+
+**Verificación exhaustiva antes de dar la migración por buena** (el usuario la corrió manualmente vía SQL Editor, sin acceso a psql/DDL desde el agente):
+1. Chequeo estructural vía REST: las 15 tablas con 0 filas `workspace_id IS NULL` y 0 mismatches contra `workspace_members`.
+2. Prueba funcional con Playwright y dos usuarios reales nuevos: (a) el trigger crea el workspace automáticamente al hacer signup, (b) CRUD completo (empresa→proyecto→tarea) funciona bajo la RLS nueva sin tocar código, (c) **aislamiento cruzado real** — Usuario B no puede ver ni el proyecto ni las empresas sembradas de Usuario A, cada uno en su propio workspace.
+
+### Página de Equipo (`/equipo`)
+
+`src/lib/supabase/admin.ts` — cliente con `service_role` key, server-only, para operaciones que la anon key no puede hacer (leer `auth.users`, invitar usuarios). `src/lib/workspace.ts` — `getCurrentWorkspace()`, v1 asume un workspace por usuario (toma la primera membresía). `src/actions/workspace.ts` — `getWorkspaceTeamData()`, `inviteMember()`, `removeMember()`, `updateMemberRole()`, `cancelInvitation()`.
+
+Lógica de invitación con dos ramas: si el correo ya tiene cuenta en Supabase, se agrega directo a `workspace_members` (sin fricción); si es nuevo, se inserta la fila en `workspace_invitations` y se llama a `admin.auth.admin.inviteUserByEmail()`. **Hallazgo importante**: esa llamada de la Admin API crea la fila en `auth.users` de inmediato (no espera a que la persona acepte el correo), lo que dispara `handle_new_user()` en el acto — la invitación se consume y la persona queda en `workspace_members` con el rol correcto *antes* de que llegue a hacer click en el correo. Confirmado con Playwright: invitado con rol "admin", y al "registrarse" con ese mismo correo ya aparecía como miembro con el rol correcto, sin invitación pendiente residual.
+
+### Bug encontrado al limpiar los usuarios de prueba (y arreglado)
+
+`workspace_invitations.invited_by` no tenía `on delete cascade` hacia `auth.users` (a diferencia de todos los demás `owner_id` del esquema, que sí lo tienen) — borrar una cuenta que hubiera invitado a alguien fallaba por violación de FK. Se hubiera manifestado en producción el día que un owner intentara borrar su cuenta después de haber invitado gente. Arreglado en `supabase/migrations/0005_workspace_invitations_fk_fix.sql` (cambia la constraint a `on delete cascade`).
