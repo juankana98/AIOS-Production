@@ -33,6 +33,36 @@ export async function createProject(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateProject(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  const projectId = String(formData.get("project_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const expectedOutcome = String(formData.get("expected_outcome") ?? "").trim();
+  if (!projectId || !name) throw new Error("Nombre es obligatorio");
+
+  const { error } = await supabase
+    .from("projects")
+    .update({
+      name,
+      expected_outcome: expectedOutcome,
+      description: String(formData.get("description") ?? "") || null,
+      priority: Number(formData.get("priority") ?? 2),
+      due_on: String(formData.get("due_on") ?? "") || null,
+      starts_on: String(formData.get("starts_on") ?? "") || null,
+    })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/proyectos");
+  revalidatePath(`/proyectos/${projectId}`);
+  revalidatePath("/");
+}
+
 export async function updateProjectStatus(projectId: string, status: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("projects").update({ status }).eq("id", projectId);

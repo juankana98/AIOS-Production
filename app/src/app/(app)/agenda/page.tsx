@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createManualBlock } from "@/actions/schedule";
+import { getGoogleCalendarStatus } from "@/actions/google-calendar";
+import { getGoogleBusyIntervals, computeDailyCapacity, workHoursRange } from "@/lib/capacity";
+import { todayISO, localDateTime } from "@/lib/timezone";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GenerateScheduleButton } from "@/components/agenda/generate-schedule-button";
-import { BlockActions } from "@/components/agenda/block-actions";
+import { GoogleCalendarConnect } from "@/components/agenda/google-calendar-connect";
+import { CapacityPanel } from "@/components/agenda/capacity-panel";
+import { VisualCalendar } from "@/components/agenda/visual-calendar";
 import type { ScheduleBlockRow } from "@/lib/types";
 
 function toISODate(d: Date) {
@@ -16,23 +20,36 @@ function toISODate(d: Date) {
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; google_connected?: string; google_error?: string }>;
 }) {
-  const { date } = await searchParams;
-  const dateISO = date ?? toISODate(new Date());
+  const { date, google_connected, google_error } = await searchParams;
+  const dateISO = date ?? todayISO();
 
   const supabase = await createClient();
-  const rangeStart = new Date(`${dateISO}T00:00:00`);
-  const rangeEnd = new Date(`${dateISO}T23:59:59`);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const { data: blocks } = await supabase
-    .from("schedule_blocks")
-    .select("*")
-    .gte("starts_at", rangeStart.toISOString())
-    .lte("starts_at", rangeEnd.toISOString())
-    .order("starts_at", { ascending: true });
+  const rangeStart = localDateTime(dateISO, 0, 0);
+  const rangeEnd = localDateTime(dateISO, 23, 59);
+  const { dayStart, dayEnd } = workHoursRange(dateISO);
+
+  const [{ data: blocks }, googleStatus] = await Promise.all([
+    supabase
+      .from("schedule_blocks")
+      .select("*")
+      .gte("starts_at", rangeStart.toISOString())
+      .lte("starts_at", rangeEnd.toISOString())
+      .order("starts_at", { ascending: true }),
+    getGoogleCalendarStatus(),
+  ]);
 
   const blockRows = (blocks ?? []) as ScheduleBlockRow[];
+
+  const [{ busy: googleBusy }, capacity] = await Promise.all([
+    user ? getGoogleBusyIntervals(supabase, user.id, dayStart, dayEnd) : Promise.resolve({ busy: [] }),
+    user ? computeDailyCapacity(supabase, user.id, dateISO) : Promise.resolve(null),
+  ]);
 
   const prev = new Date(rangeStart);
   prev.setDate(prev.getDate() - 1);
@@ -57,36 +74,31 @@ export default async function AgendaPage({
         </div>
       </div>
 
+      {google_connected && (
+        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+          Google Calendar conectado correctamente.
+        </p>
+      )}
+
+      <GoogleCalendarConnect connected={googleStatus.connected} email={googleStatus.email} error={google_error ?? null} />
+
+      {capacity && (
+        <Card>
+          <CardContent className="pt-4">
+            <CapacityPanel capacity={capacity} />
+          </CardContent>
+        </Card>
+      )}
+
       <GenerateScheduleButton dateISO={dateISO} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardContent className="divide-y divide-slate-100 p-0 dark:divide-slate-800">
-              {blockRows.map((block) => (
-                <div key={block.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div>
-                    <p className={`text-sm font-medium ${block.status === "done" ? "text-slate-400 line-through" : ""}`}>
-                      {block.title}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {new Date(block.starts_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} –{" "}
-                      {new Date(block.ends_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge tone={block.source === "auto" ? "indigo" : "slate"}>{block.source}</Badge>
-                    <BlockActions blockId={block.id} />
-                  </div>
-                </div>
-              ))}
-              {blockRows.length === 0 && (
-                <p className="px-4 py-8 text-center text-sm text-slate-500">
-                  Sin bloques para este día. Genera la agenda automática o crea uno manual.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <div className="lg:col-span-3">
+          <VisualCalendar
+            dateISO={dateISO}
+            blocks={blockRows}
+            googleBusy={googleBusy.map((b) => ({ start: b.start.toISOString(), end: b.end.toISOString() }))}
+          />
         </div>
 
         <Card className="h-fit">

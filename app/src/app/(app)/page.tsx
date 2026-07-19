@@ -2,9 +2,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCompaniesWithProgress, getTodayPriorityTasks, getCheckinStreak, getOpenTimer } from "@/lib/queries";
 import { seedDefaultCompaniesIfEmpty } from "@/actions/companies";
+import { computeDailyCapacity } from "@/lib/capacity";
+import { todayISO } from "@/lib/timezone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Badge } from "@/components/ui/badge";
+import { CapacityPanel } from "@/components/agenda/capacity-panel";
 import { eisenhowerQuadrant, quadrantLabel } from "@/lib/priority";
 import { formatMinutes } from "@/lib/utils";
 import { Flame, Timer as TimerIcon } from "lucide-react";
@@ -13,11 +16,16 @@ export default async function DashboardPage() {
   await seedDefaultCompaniesIfEmpty();
 
   const supabase = await createClient();
-  const [companies, priorityTasks, streak, openTimer] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [companies, priorityTasks, streak, openTimer, capacity] = await Promise.all([
     getCompaniesWithProgress(supabase),
     getTodayPriorityTasks(supabase),
     getCheckinStreak(supabase),
     getOpenTimer(supabase),
+    user ? computeDailyCapacity(supabase, user.id, todayISO()) : Promise.resolve(null),
   ]);
 
   const totalProjects = companies.reduce((sum, c) => sum + c.projects.length, 0);
@@ -51,6 +59,14 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {capacity && (
+        <Card>
+          <CardContent className="pt-4">
+            <CapacityPanel capacity={capacity} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

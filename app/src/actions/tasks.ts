@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { localDateTimeFromInput } from "@/lib/timezone";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 async function recomputeProjectProgress(supabase: SupabaseClient, projectId: string) {
@@ -45,12 +46,46 @@ export async function createTask(formData: FormData) {
     is_urgent: formData.get("is_urgent") === "on",
     is_important: formData.get("is_important") !== "off",
     estimated_minutes: formData.get("estimated_minutes") ? Number(formData.get("estimated_minutes")) : null,
-    due_at: String(formData.get("due_at") ?? "") || null,
+    due_at: formData.get("due_at") ? localDateTimeFromInput(String(formData.get("due_at"))).toISOString() : null,
     energy: String(formData.get("energy") ?? "medium") as "low" | "medium" | "high" | "deep",
   });
   if (error) throw new Error(error.message);
 
   await recomputeProjectProgress(supabase, projectId);
+
+  revalidatePath("/tareas");
+  revalidatePath(`/proyectos/${projectId}`);
+  revalidatePath("/agenda");
+  revalidatePath("/");
+}
+
+export async function updateTask(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  const taskId = String(formData.get("task_id") ?? "");
+  const projectId = String(formData.get("project_id") ?? "");
+  const title = String(formData.get("title") ?? "").trim();
+  if (!taskId || !title) throw new Error("Título es obligatorio");
+
+  const dueAtRaw = String(formData.get("due_at") ?? "");
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({
+      title,
+      description: String(formData.get("description") ?? "") || null,
+      is_urgent: formData.get("is_urgent") === "on",
+      is_important: formData.get("is_important") !== "off",
+      estimated_minutes: formData.get("estimated_minutes") ? Number(formData.get("estimated_minutes")) : null,
+      due_at: dueAtRaw ? localDateTimeFromInput(dueAtRaw).toISOString() : null,
+      energy: String(formData.get("energy") ?? "medium") as "low" | "medium" | "high" | "deep",
+    })
+    .eq("id", taskId);
+  if (error) throw new Error(error.message);
 
   revalidatePath("/tareas");
   revalidatePath(`/proyectos/${projectId}`);

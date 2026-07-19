@@ -1,11 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCheckinStreak, projectSemaphore } from "@/lib/queries";
+import { computeDailyCapacity } from "@/lib/capacity";
+import { todayISO } from "@/lib/timezone";
 import { upsertCheckin } from "@/actions/checkins";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { WeeklyReview } from "@/components/accountability/weekly-review";
+import { CapacityPanel } from "@/components/agenda/capacity-panel";
 import { Flame } from "lucide-react";
 import type { CheckinRow, CompanyRow, ProjectRow } from "@/lib/types";
 
@@ -13,9 +16,12 @@ const SEMAPHORE_TONE = { verde: "emerald", amarillo: "amber", rojo: "red" } as c
 
 export default async function AccountabilityPage() {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const [streak, { data: todayCheckin }, { data: recentCheckins }, { data: companies }, { data: projects }] =
+  const [streak, { data: todayCheckin }, { data: recentCheckins }, { data: companies }, { data: projects }, capacity] =
     await Promise.all([
       getCheckinStreak(supabase),
       supabase.from("checkins").select("*").eq("checkin_date", today).eq("type", "daily").maybeSingle(),
@@ -27,6 +33,7 @@ export default async function AccountabilityPage() {
         .limit(10),
       supabase.from("companies").select("*").eq("is_archived", false),
       supabase.from("projects").select("*").eq("status", "active"),
+      user ? computeDailyCapacity(supabase, user.id, today) : Promise.resolve(null),
     ]);
 
   const checkin = todayCheckin as CheckinRow | null;
@@ -97,8 +104,13 @@ export default async function AccountabilityPage() {
         </div>
 
         <Card className="h-fit">
-          <CardContent className="pt-4">
-            <h3 className="mb-3 text-sm font-semibold">Check-in de hoy</h3>
+          <CardContent className="space-y-4 pt-4">
+            {capacity && (
+              <div className="border-b border-slate-100 pb-4 dark:border-slate-800">
+                <CapacityPanel capacity={capacity} compact />
+              </div>
+            )}
+            <h3 className="text-sm font-semibold">Check-in de hoy</h3>
             <form action={upsertCheckin} className="space-y-3">
               <input type="hidden" name="type" value="daily" />
               <input type="hidden" name="checkin_date" value={today} />

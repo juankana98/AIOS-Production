@@ -1,6 +1,6 @@
 ---
 tipo: dev-estado
-actualizado: 2026-07-13
+actualizado: 2026-07-14
 ---
 
 # Centro de Comando — Estado Actual
@@ -26,7 +26,7 @@ Variables de entorno viven en `app/.env.local` (local, gitignored) y en Vercel (
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · TypeScript · Tailwind CSS 4 (componentes UI hand-rolled, sin shadcn) · Supabase (Postgres + Auth + RLS) · Server Actions (sin API REST propia salvo `/auth/callback`) · Recharts · @dnd-kit (instalado, aún sin usar en UI) · Anthropic SDK + fetch directo a OpenRouter.
+Next.js 16 (App Router, Turbopack) · TypeScript · Tailwind CSS 4 (componentes UI hand-rolled, sin shadcn) · Supabase (Postgres + Auth + RLS) · Server Actions (rutas API propias solo para OAuth: `/auth/callback` de Supabase y `/api/google/auth|callback`) · Recharts · @dnd-kit (calendario visual drag-and-drop en `/agenda`) · Anthropic SDK + fetch directo a OpenRouter · Google Calendar API (OAuth, FreeBusy).
 
 ## IA — proveedor y modelos activos
 
@@ -44,10 +44,13 @@ Detalle de la comparación (incluyendo Opus 4.8 vs GPT-5.1 cabeza a cabeza) en [
 
 ## Funcionalidades construidas
 
-- CRUD completo: Empresas → Metas → OKRs/Key Results → Proyectos → KPIs/Tareas
-- Dashboard con % de avance agregado por empresa y global
+- CRUD completo: Empresas → Metas → OKRs/Key Results → Proyectos → KPIs/Tareas, **con edición inline** de proyectos y tareas (nombre, resultado esperado, estimación, energía, fechas — no solo creación/cambio de estado)
+- Dashboard con % de avance agregado por empresa y global, más **panel de capacidad/desempeño del día**
 - Control de tiempos: timer en vivo (uno activo a la vez), reporte semanal por proyecto
-- Agenda inteligente: scoring de prioridad (Eisenhower + urgencia por deadline + energía) + generación automática de bloques de tiempo
+- Agenda inteligente: scoring de prioridad (Eisenhower + urgencia por deadline + energía) + generación automática de bloques de tiempo, **descontando reuniones reales de Google Calendar cuando está conectado**
+- **Calendario visual** (`/agenda`): grid de horas con drag-and-drop (@dnd-kit) para reagendar bloques, reuniones de Google mostradas como capa de solo lectura
+- **Conexión OAuth con Google Calendar**: lee disponibilidad real (FreeBusy API), botón conectar/desconectar en `/agenda`
+- **Panel de capacidad/desempeño**: horario laboral real (menos reuniones) vs. tiempo ejecutado (`time_entries`) → % de "presión" visible en Dashboard, Agenda y Accountability
 - Accountability: check-in diario, racha, semáforo de proyectos (verde/amarillo/rojo), resumen semanal generado por IA
 - Agente de IA idea→estructura: propone proyecto/tareas/KPIs desde texto libre, con **iteración por feedback** (ajusta la propuesta existente en vez de regenerar desde cero) y selector de nivel de razonamiento
 - Sync Supabase → Markdown (`obsidian-sync/`) hacia las carpetas `Empresas/`, `Proyectos/`, `OKRs/`, `Ideas/`, `Daily Notes/` de este vault
@@ -59,6 +62,10 @@ Detalle de la comparación (incluyendo Opus 4.8 vs GPT-5.1 cabeza a cabeza) en [
 - GitHub: `juankana98`, push autenticado vía Git Credential Manager (token classic usado solo para el push inicial, luego revocable)
 - Vercel: cuenta `juankana98`, ya autenticado en el CLI local
 
+## Zona horaria
+
+Todo el cálculo de "hoy" y horario laboral usa un offset fijo de Colombia (`-05:00`, sin horario de verano) definido en `src/lib/timezone.ts` — **nunca** usar `new Date().setHours(...)` ni parsear un `datetime-local` con `new Date(string)` directo en Server Actions, porque Vercel corre en UTC y desfasaría todo ~5 horas en producción (bug real encontrado y corregido el 2026-07-14, ver [[Bitácora de cambios]]). Usar `todayISO()`, `localDateTime()`, `localDateTimeFromInput()`.
+
 ## Última verificación end-to-end
 
-2026-07-13: flujo completo probado con Playwright contra producción y local — signup → dashboard con siembra de empresas → proyecto → tarea → agenda automática → agente de IA con feedback iterativo → selector de modelo por nivel. Sin errores de consola reales.
+2026-07-14: flujo completo probado con Playwright contra producción y local — signup → dashboard con siembra de empresas → proyecto → tarea → agenda automática → drag-and-drop en calendario visual → conexión real de Google Calendar (cuenta real del usuario, no mock) → panel de capacidad verificado contra la API de Google directamente → edición de proyecto y tarea. Sin errores de consola reales.

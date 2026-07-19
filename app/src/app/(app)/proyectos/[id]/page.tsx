@@ -5,15 +5,12 @@ import { createTask } from "@/actions/tasks";
 import { createKpi } from "@/actions/projects";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
-import { Badge } from "@/components/ui/badge";
 import { Input, Textarea, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { TaskStatusSelect } from "@/components/tasks/task-status-select";
 import { KpiRecordForm } from "@/components/tasks/kpi-record-form";
-import { StartTimerButton } from "@/components/time/start-timer-button";
-import { eisenhowerQuadrant, quadrantLabel } from "@/lib/priority";
-import { formatMinutes, priorityLabel } from "@/lib/utils";
-import type { TaskRow, KpiRow } from "@/lib/types";
+import { TaskListItem } from "@/components/tasks/task-list-item";
+import { EditProjectHeader } from "@/components/tasks/edit-project-header";
+import type { TaskRow, KpiRow, ProjectRow } from "@/lib/types";
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,16 +34,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         <Link href={`/empresas/${project.company_id}`} className="text-xs text-slate-500 hover:underline">
           ← {company?.name}
         </Link>
-        <h1 className="text-xl font-semibold">{project.name}</h1>
-        <p className="text-sm text-slate-500">{project.expected_outcome}</p>
-        <div className="mt-2 flex items-center gap-2">
-          <Badge tone="indigo">{priorityLabel(project.priority)}</Badge>
-          {project.due_on && <Badge tone="slate">Límite: {project.due_on}</Badge>}
-          <Badge tone="slate">{project.progress_mode === "auto" ? "% auto (por tareas)" : "% manual"}</Badge>
-        </div>
-        <div className="mt-3 max-w-md">
-          <ProgressBar value={project.progress_pct} />
-        </div>
+        <EditProjectHeader project={project as ProjectRow} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -57,22 +45,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <Card>
             <CardContent className="divide-y divide-slate-100 p-0 dark:divide-slate-800">
               {taskRows.map((task) => (
-                <div key={task.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className={`text-sm font-medium ${task.status === "done" ? "text-slate-400 line-through" : ""}`}>
-                      {task.title}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <Badge tone="indigo">{quadrantLabel(eisenhowerQuadrant(task))}</Badge>
-                      {task.estimated_minutes && <Badge tone="slate">est. {formatMinutes(task.estimated_minutes)}</Badge>}
-                      {task.actual_minutes > 0 && <Badge tone="slate">real {formatMinutes(task.actual_minutes)}</Badge>}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {task.status !== "done" && <StartTimerButton taskId={task.id} />}
-                    <TaskStatusSelect taskId={task.id} projectId={project.id} status={task.status} />
-                  </div>
-                </div>
+                <TaskListItem key={task.id} task={task} />
               ))}
               {taskRows.length === 0 && <p className="px-4 py-6 text-sm text-slate-500">Sin tareas todavía.</p>}
             </CardContent>

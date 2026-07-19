@@ -1,6 +1,6 @@
 ---
 tipo: dev-bitacora
-actualizado: 2026-07-13
+actualizado: 2026-07-14
 ---
 
 # Bitácora de cambios — Centro de Comando
@@ -48,3 +48,19 @@ Después, a pedido del usuario, se hizo una comparación cabeza a cabeza especí
 ## 2026-07-13 — Vault activado como memoria de desarrollo del proyecto
 
 El usuario pidió que Obsidian funcione como "memoria infinita de contexto" para la evolución de esta misma app — no solo para conocimiento de negocio externo. Se creó la carpeta `Desarrollo/` en el vault ([[Estado Actual]], [[Decisiones de Arquitectura]], esta bitácora, [[Pendientes y Roadmap]]) y se agregó la convención a `vault/CLAUDE.md` para que se mantenga actualizada en cada sesión futura de trabajo sobre el proyecto, no solo cuando se pida explícitamente.
+
+## 2026-07-14 — Calendario visual + Google Calendar real + capacidad/desempeño + edición de tareas/proyectos
+
+Pedido grande del usuario: calendario visual con drag-and-drop, conexión real con Google Calendar para detectar huecos libres, y un sistema que mida cuánto se puede avanzar por día para generar presión real sobre la ejecución. Se resolvió con OAuth completo (la otra opción, iCal secreto, se descartó por el usuario) — el usuario creó las credenciales en Google Cloud Console mientras se construía el resto.
+
+Construido:
+- **OAuth de Google Calendar** (`src/lib/google/`, `src/app/api/google/auth|callback`): scope de solo lectura (`calendar.readonly`), `access_type=offline` + `prompt=consent` para conseguir refresh_token, guardado en tabla nueva `google_calendar_connections` (RLS). Refresh automático del access_token cuando expira.
+- **FreeBusy API** (no la API de eventos completa — no hace falta leer títulos/invitados, solo saber qué está ocupado) integrada al generador de agenda (`generateScheduleForDay` ahora descuenta reuniones reales, no solo bloques manuales) y a un nuevo módulo `src/lib/capacity.ts` que calcula capacidad real del día (horario laboral − reuniones) cruzada contra tiempo ejecutado (`time_entries`) → `CapacityPanel`, visible en Dashboard, Agenda y Accountability (las tres ubicaciones que pidió el usuario).
+- **Calendario visual** (`VisualCalendar`, `@dnd-kit`): grid de horas 6:00-22:00, bloques de tareas arrastrables (snap de 15 min) vía `moveBlock`, reuniones de Google mostradas como capas no interactivas de solo lectura.
+- **Edición de tareas y proyectos**: el usuario notó que una vez creados no se podían editar (ni nombre, ni estimación, ni objetivo). Se agregaron `updateTask` y `updateProject` (server actions) + `TaskListItem`/`EditProjectHeader` (toggle inline entre vista y formulario de edición, con botón de eliminar tarea incluido).
+
+Bug real encontrado validando la integración (no en el código de Google Calendar, sino en un supuesto previo de toda la app): **el cálculo de "horario laboral" y "hoy" usaba la hora local del proceso Node** (`new Date().setHours(...)`), que es correcta en desarrollo local (el equipo está en `America/Bogota`) pero se rompe en producción porque Vercel corre las funciones serverless en UTC — habría desfasado el horario laboral ~5 horas y calculado "hoy" mal cerca de medianoche. Se creó `src/lib/timezone.ts` con un offset fijo de Colombia (`-05:00`, sin horario de verano) y se aplicó en `capacity.ts`, `schedule.ts` (agenda automática, bloques manuales), y el `due_at` de tareas. Verificado con un script que replica el cálculo de capacidad contra la cuenta real de Google del usuario: 2 reuniones reales detectadas hoy (1h c/u) → 9h de capacidad real vs. las 11h que asumía el horario fijo.
+
+De paso se encontró que `.env.example` nunca había estado en git desde el primer commit — el `.gitignore` de Next.js por defecto (`.env*`) también lo excluía a él. Se corrigió con `!.env.example`.
+
+Todo probado end-to-end con Playwright antes de subir (signup → crear proyecto/tarea → generar agenda → drag-and-drop → editar proyecto → editar tarea) y verificado con la cuenta real de Google Calendar del usuario, no solo con datos de prueba.

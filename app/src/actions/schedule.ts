@@ -3,19 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { computePriorityScore } from "@/lib/priority";
+import { workHoursRange, getGoogleBusyIntervals, computeDailyCapacity } from "@/lib/capacity";
+import { localDateTime, localDateTimeFromInput } from "@/lib/timezone";
 import type { TaskRow } from "@/lib/types";
+import type { BusyInterval } from "@/lib/google/calendar";
 
-const WORK_START_HOUR = 8;
-const WORK_END_HOUR = 19;
 const MIN_BLOCK_MINUTES = 15;
 const DEFAULT_TASK_MINUTES = 30;
 
 type FreeSlot = { start: Date; end: Date };
 
-function buildFreeSlots(dayStart: Date, dayEnd: Date, busy: { starts_at: string; ends_at: string }[]): FreeSlot[] {
-  const sortedBusy = [...busy]
-    .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }))
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+function buildFreeSlots(dayStart: Date, dayEnd: Date, busy: BusyInterval[]): FreeSlot[] {
+  const sortedBusy = [...busy].sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const slots: FreeSlot[] = [];
   let cursor = dayStart;
@@ -36,8 +35,9 @@ function buildFreeSlots(dayStart: Date, dayEnd: Date, busy: { starts_at: string;
  * Genera bloques de agenda automáticos para un día: toma las tareas pendientes
  * sin bloque asignado ese día, las ordena por score de prioridad
  * (Eisenhower + urgencia por deadline + energía) y las va encajando en los
- * huecos libres de la jornada laboral, respetando bloques manuales existentes
- * (reuniones, etc.) como tiempo ocupado.
+ * huecos libres de la jornada laboral — descontando tanto bloques manuales
+ * existentes como, si Google Calendar está conectado, las reuniones reales
+ * de ese día (ver src/lib/capacity.ts).
  */
 export async function generateScheduleForDay(dateISO: string) {
   const supabase = await createClient();
@@ -46,22 +46,26 @@ export async function generateScheduleForDay(dateISO: string) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("No autenticado");
 
-  const dayStart = new Date(`${dateISO}T00:00:00`);
-  dayStart.setHours(WORK_START_HOUR, 0, 0, 0);
-  const dayEnd = new Date(`${dateISO}T00:00:00`);
-  dayEnd.setHours(WORK_END_HOUR, 0, 0, 0);
+  const { dayStart, dayEnd } = workHoursRange(dateISO);
 
-  const rangeStart = new Date(`${dateISO}T00:00:00`);
-  const rangeEnd = new Date(`${dateISO}T23:59:59`);
+  const rangeStart = localDateTime(dateISO, 0, 0);
+  const rangeEnd = localDateTime(dateISO, 23, 59);
 
-  const { data: existingBlocks } = await supabase
-    .from("schedule_blocks")
-    .select("starts_at, ends_at, task_id")
-    .gte("starts_at", rangeStart.toISOString())
-    .lte("starts_at", rangeEnd.toISOString());
+  const [{ data: existingBlocks }, { busy: googleBusy }] = await Promise.all([
+    supabase
+      .from("schedule_blocks")
+      .select("starts_at, ends_at, task_id")
+      .gte("starts_at", rangeStart.toISOString())
+      .lte("starts_at", rangeEnd.toISOString()),
+    getGoogleBusyIntervals(supabase, user.id, dayStart, dayEnd),
+  ]);
 
-  const busy = existingBlocks ?? [];
-  const alreadyScheduledTaskIds = new Set(busy.map((b) => b.task_id).filter(Boolean));
+  const manualBusy = existingBlocks ?? [];
+  const alreadyScheduledTaskIds = new Set(manualBusy.map((b) => b.task_id).filter(Boolean));
+  const busy: BusyInterval[] = [
+    ...manualBusy.map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) })),
+    ...googleBusy,
+  ];
 
   const { data: tasks } = await supabase
     .from("tasks")
@@ -128,8 +132,8 @@ export async function createManualBlock(formData: FormData) {
     owner_id: user.id,
     task_id: String(formData.get("task_id") ?? "") || null,
     title,
-    starts_at: new Date(startsAt).toISOString(),
-    ends_at: new Date(endsAt).toISOString(),
+    starts_at: localDateTimeFromInput(startsAt).toISOString(),
+    ends_at: localDateTimeFromInput(endsAt).toISOString(),
     source: "manual",
   });
   if (error) throw new Error(error.message);
@@ -149,4 +153,29 @@ export async function deleteBlock(blockId: string) {
   const { error } = await supabase.from("schedule_blocks").delete().eq("id", blockId);
   if (error) throw new Error(error.message);
   revalidatePath("/agenda");
+}
+
+/** Reagenda un bloque a un nuevo horario (drag-and-drop en el calendario visual). */
+export async function moveBlock(blockId: string, newStartISO: string, durationMinutes: number) {
+  const supabase = await createClient();
+  const newStart = new Date(newStartISO);
+  const newEnd = new Date(newStart.getTime() + durationMinutes * 60_000);
+
+  const { error } = await supabase
+    .from("schedule_blocks")
+    .update({ starts_at: newStart.toISOString(), ends_at: newEnd.toISOString() })
+    .eq("id", blockId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/agenda");
+}
+
+export async function getDailyCapacity(dateISO: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("No autenticado");
+
+  return computeDailyCapacity(supabase, user.id, dateISO);
 }

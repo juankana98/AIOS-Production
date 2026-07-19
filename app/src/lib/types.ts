@@ -192,6 +192,29 @@ export type AiIdeaProposal = {
   rationale?: string;
 };
 
+export type GoogleCalendarConnectionRow = {
+  id: string;
+  owner_id: string;
+  google_email: string | null;
+  access_token: string;
+  refresh_token: string;
+  token_expires_at: string;
+  scope: string;
+  calendar_id: string;
+  connected_at: string;
+  updated_at: string;
+};
+
+export type DailyCapacityRow = {
+  id: string;
+  owner_id: string;
+  capacity_date: string;
+  available_minutes: number;
+  executed_minutes: number;
+  source: "google_calendar" | "fallback_work_hours";
+  computed_at: string;
+};
+
 // Minimal Database type shape so @supabase/ssr generics compile.
 // Not exhaustive (Functions/Enums omitted) — extend if you regenerate from the CLI.
 export type Database = {
