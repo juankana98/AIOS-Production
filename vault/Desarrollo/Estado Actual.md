@@ -1,6 +1,6 @@
 ---
 tipo: dev-estado
-actualizado: 2026-07-19
+actualizado: 2026-07-20
 ---
 
 # Centro de Comando (AIOS) — Estado Actual
@@ -9,7 +9,7 @@ Snapshot vivo del proyecto. Esta página se **actualiza in-place** (no es cronol
 
 ## Qué es
 
-Sistema de máxima productividad multi-empresa. **Fase actual: uso personal de Juan Camilo** (Vetshipping, Restaurante, Automatización & Desarrollo). **Fase siguiente (en marcha desde 2026-07-19): productizar como SaaS** bajo el nombre de marca **AIOS**, vendido por suscripción mensual (billing por workspace/equipo, freemium con topes en IA y otras cosas). Secuencia acordada: costos → equipos/workspace → freemium/onboarding → landing+registro. Contexto de producto completo en `CLAUDE.md` (raíz del repo).
+Sistema de máxima productividad multi-empresa. Uso base: **personal de Juan Camilo** (Vetshipping, Restaurante, Automatización & Desarrollo), sobre el que se construyó el producto **AIOS** para venderse como SaaS por suscripción mensual (billing por workspace/equipo, freemium con topes en IA y otras cosas). Las 4 piezas del roadmap SaaS acordado (costos → equipos/workspace → freemium/onboarding → landing+registro) están completas desde 2026-07-20 — la app ya tiene landing pública, signup con plan Free real, y captura de interés para el plan Pro (sin precio ni billing conectado todavía, ver [[Pendientes y Roadmap]]). Contexto de producto completo en `CLAUDE.md` (raíz del repo).
 
 ## Infraestructura viva
 
@@ -62,6 +62,7 @@ Detalle de la comparación (incluyendo Opus 4.8 vs GPT-5.1 cabeza a cabeza) en [
 - **Monitoreo de costos de IA** (`/uso-ia`): cada llamada a `AIProvider` loguea proveedor/modelo/tokens/costo real en `ai_usage_log` — costo de hoy/semana/mes, proyección mensual, desglose por función/modelo. Base para fijar el precio de la membresía SaaS.
 - **Arquitectura de equipos/workspace** (multi-tenant real, no solo single-owner): `workspaces`/`workspace_members`/`workspace_invitations`, RLS de las 15 tablas de negocio migrada de `owner_id` a membresía de workspace, auto-provisión de workspace personal al hacer signup (o unión automática si hay invitación pendiente). Página `/equipo`: listar miembros, invitar por correo (rama directa si ya tiene cuenta, invitación + email si es nuevo), cambiar rol, quitar miembro, cancelar invitación pendiente. Billing queda listo para ser por workspace, no por usuario.
 - **Freemium + Onboarding**: workspaces nuevos (signup público, sin invitación) nacen en `plan = 'free'` — 1 empresa, 3 proyectos activos, 1 asiento, sin IA (`src/lib/plans.ts` + `src/lib/limits.ts`, enganchado en `createCompany`/`createProject`/`inviteMember`/las 3 llamadas de IA). El workspace `personal` de Juan Camilo queda sin topes. Wizard de onboarding obligatorio (`/onboarding`, 4 pasos: rol, negocio, reto, objetivo) antes de entrar al dashboard — crea la primera empresa del usuario con el nombre que dio. Panel de plan/uso visible en `/equipo` (barras de progreso por empresas/proyectos/asientos + badge de IA).
+- **Landing page pública** (`/`, sin sesión): hero + features reales + tabla de precios Free/Pro (Pro sin precio todavía, "Próximamente"). Con sesión, `/` sigue mostrando el Dashboard normal — mismo layout, distinta rama server-side según haya usuario o no (`(app)/page.tsx` y `(app)/layout.tsx`). CTA "Empieza gratis" enlaza a `/login?mode=signup`. Captura de interés en Pro (`upgrade_requests`, tabla nueva) desde la landing (anónimo) y desde `/equipo` (autenticado, solo si el plan es Free) — sin billing real conectado, Juan Camilo revisa las solicitudes a mano en Supabase.
 
 ## Cuentas y accesos relevantes
 
@@ -80,6 +81,8 @@ Detalle de la comparación (incluyendo Opus 4.8 vs GPT-5.1 cabeza a cabeza) en [
 Todo el cálculo de "hoy" y horario laboral usa un offset fijo de Colombia (`-05:00`, sin horario de verano) definido en `src/lib/timezone.ts` — **nunca** usar `new Date().setHours(...)` ni parsear un `datetime-local` con `new Date(string)` directo en Server Actions, porque Vercel corre en UTC y desfasaría todo ~5 horas en producción (bug real encontrado y corregido el 2026-07-14, ver [[Bitácora de cambios]]). Usar `todayISO()`, `localDateTime()`, `localDateTimeFromInput()`.
 
 ## Última verificación end-to-end
+
+2026-07-20: landing page — `/` sin sesión muestra la landing (verificado light/dark mode), `/` con sesión sigue mostrando el Dashboard real con sidebar (sin regresión por el cambio de layout/proxy), flujo completo landing→signup→onboarding→dashboard probado de punta a punta, formulario de captura de interés en Pro probado anónimo (landing) y autenticado (`/equipo`) con fila verificada en `upgrade_requests`. Sin errores de consola reales (una advertencia de hidratación benigna por autofill de Chromium en un input oculto, no reproducible de forma consistente, no afecta funcionalidad).
 
 2026-07-19: freemium + onboarding — signup nuevo real con Playwright: wizard de 4 pasos completado → primera empresa creada con el nombre dado → no se siembran las empresas demo → revisitar /onboarding ya completado redirige al dashboard → topes de empresas/proyectos/asientos bloqueados con el mensaje correcto → IA bloqueada → panel de plan en /equipo correcto. Cuenta real de Juan Camilo verificada como exenta (onboarding_completed_at ya seteado por el backfill, plan personal intacto). Usuarios y workspaces de prueba limpiados.
 

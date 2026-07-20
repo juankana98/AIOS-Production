@@ -36,8 +36,11 @@ export async function proxy(request: NextRequest) {
   const isAuthCallback = request.nextUrl.pathname.startsWith("/auth");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
   const isOnboardingRoute = request.nextUrl.pathname.startsWith("/onboarding");
+  // "/" es pública: sin sesión muestra la landing page, con sesión el
+  // Dashboard — ambos casos los resuelve (app)/page.tsx, no el proxy.
+  const isPublicRoot = request.nextUrl.pathname === "/";
 
-  if (!user && !isAuthRoute && !isAuthCallback) {
+  if (!user && !isAuthRoute && !isAuthCallback && !isPublicRoot) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

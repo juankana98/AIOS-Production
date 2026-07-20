@@ -31,3 +31,5 @@ Registro cronológico append-only. Formato de cada entrada: `## [YYYY-MM-DD] tip
 ## [2026-07-19] dev | Arquitectura de equipos/workspace (multi-tenant real, punto 2 del roadmap SaaS): RLS de 15 tablas migrada de owner_id a workspace, página /equipo, invitaciones — ver Desarrollo/Bitácora de cambios.md
 
 ## [2026-07-19] dev | Freemium + Onboarding (punto 3 del roadmap SaaS): plan Free con topes, wizard de 4 pasos obligatorio, y fix de un bug sistémico de formularios (form action={fn}+startTransition) que afectaba también edición de tareas/proyectos — ver Desarrollo/Bitácora de cambios.md
+
+## [2026-07-20] dev | Landing page pública (punto 4 y último del roadmap SaaS): landing en "/" para visitantes sin sesión, captura de interés en plan Pro (upgrade_requests) sin billing conectado — ver Desarrollo/Bitácora de cambios.md

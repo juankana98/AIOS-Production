@@ -5,6 +5,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { InviteMemberForm } from "@/components/equipo/invite-member-form";
 import { MemberRowActions } from "@/components/equipo/member-row-actions";
 import { CancelInvitationButton } from "@/components/equipo/cancel-invitation-button";
+import { UpgradeRequestForm } from "@/components/marketing/upgrade-request-form";
 import { createClient } from "@/lib/supabase/server";
 
 function usagePct(used: number, max: number | null): number {
@@ -87,6 +88,14 @@ export default async function EquipoPage() {
               <ProgressBar value={usagePct(usage.seats, usage.limits.maxSeats)} size="sm" />
             </div>
           </CardContent>
+          {workspace.plan === "free" && canManage && (
+            <CardContent className="border-t border-teal-900/[0.06] pt-4 dark:border-white/[0.06]">
+              <p className="mb-2 text-xs text-slate-500">
+                ¿Necesitas más de lo que incluye Free? El plan Pro está por confirmarse — déjanos tu correo y te avisamos primero.
+              </p>
+              <UpgradeRequestForm planInterested="pro" defaultEmail={user?.email ?? ""} compact />
+            </CardContent>
+          )}
         </Card>
       )}
 

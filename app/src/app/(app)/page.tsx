@@ -8,17 +8,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Badge } from "@/components/ui/badge";
 import { CapacityPanel } from "@/components/agenda/capacity-panel";
+import { LandingPage } from "@/components/marketing/landing-page";
 import { eisenhowerQuadrant, quadrantLabel } from "@/lib/priority";
 import { formatMinutes } from "@/lib/utils";
 import { Flame, Timer as TimerIcon } from "lucide-react";
 
 export default async function DashboardPage() {
-  await seedDefaultCompaniesIfEmpty();
-
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) return <LandingPage />;
+
+  await seedDefaultCompaniesIfEmpty();
 
   const [companies, priorityTasks, streak, openTimer, capacity] = await Promise.all([
     getCompaniesWithProgress(supabase),

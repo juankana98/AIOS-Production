@@ -1,6 +1,6 @@
 ---
 tipo: dev-bitacora
-actualizado: 2026-07-19 (freemium+onboarding)
+actualizado: 2026-07-20 (landing page)
 ---
 
 # Bitácora de cambios — Centro de Comando
@@ -152,3 +152,30 @@ Se encontraron y arreglaron **4 componentes** con el patrón roto (2 preexistent
 - `src/components/tasks/edit-project-header.tsx` y `src/components/tasks/task-list-item.tsx` (**preexistentes**, de la Fase 1 de edición inline de tareas/proyectos) — tenían el mismo patrón roto. Esto significa que la edición de tareas/proyectos probablemente nunca mostró errores del servidor correctamente desde que se implementó (aunque el caso feliz sin errores parece haber funcionado en las pruebas previas, por eso no se detectó antes) — arreglado con el mismo cambio a `onSubmit`.
 
 Verificado con Playwright de punta a punta con un usuario nuevo real: signup → redirige a onboarding → wizard completo → primera empresa creada con el nombre dado → NO se siembran las 3 empresas demo → revisitar `/onboarding` ya completado redirige al dashboard → crear 2da empresa bloqueada con el mensaje exacto del tope → 3 proyectos activos creados, 4to bloqueado → intentar usar IA bloqueado → panel de plan en `/equipo` muestra "Free"/"Sin IA"/1-1-3-3-1-1 correctamente → invitar 2do miembro bloqueado por tope de asiento. Los 9 checks pasaron. Usuarios y workspaces de prueba (de esta sesión y de la sesión anterior de equipos) limpiados vía Admin API.
+
+## 2026-07-20 — Landing page pública (punto 4 del roadmap SaaS)
+
+Cuarta y última pieza planeada de la secuencia SaaS acordada (costos → equipos → freemium → landing). Antes de construir se resolvieron con el usuario tres decisiones de producto que estaban bloqueando el diseño:
+1. **Pricing todavía sin números** — el plan Pro se muestra como "Próximamente" con la tabla de features completa (sin precio en dólares), no "Contáctanos" genérico. Evita comprometerse a un precio antes de tener datos reales de costo por usuario.
+2. **Sin proveedor de billing conectado** — el CTA de "Actualizar a Pro" no cobra nada, captura la solicitud (correo + mensaje opcional) en una tabla nueva y Juan Camilo la revisa a mano en Supabase mientras no se decide Stripe u otro proveedor.
+3. **La landing vive en `/`** — quien no tiene sesión y visita la raíz ve la landing; quien sí tiene sesión sigue viendo el Dashboard normal en la misma URL. `/login` no cambia.
+
+### Cambios de routing
+
+`(app)/page.tsx` ahora revisa la sesión primero: sin usuario renderiza `<LandingPage />`, con usuario corre la lógica de Dashboard que ya existía (sin tocarla). `(app)/layout.tsx` también revisa sesión: sin usuario renderiza los `children` a pantalla completa (sin el shell de `NavSidebar`, que asume una persona logueada); con usuario, el shell de siempre. `proxy.ts` exime a `"/"` de la regla que redirige a `/login` cuando no hay sesión — el resto de rutas del grupo `(app)` sigue protegido igual que antes, y el chequeo de onboarding pendiente sigue aplicando normal para usuarios autenticados que visiten `"/"`.
+
+`login/page.tsx` ahora lee `?mode=signup` de la URL (vía `useSearchParams`, que obligó a envolver el formulario en un componente hijo + `<Suspense>` porque Next 16 lo exige para Client Components) — el CTA "Empieza gratis" de la landing enlaza a `/login?mode=signup` y cae directo en el formulario de registro, no en login.
+
+### Landing page (`src/components/marketing/landing-page.tsx`)
+
+Hero con la propuesta de valor real del producto (multi-empresa, accountability agresivo, agenda con Google Calendar, IA idea→estructura — no genérico), 6 tarjetas de features tomadas de funcionalidad ya construida y verificada (nada aspiracional), tabla de precios Free vs. Pro usando los mismos `PLAN_LIMITS` de `src/lib/plans.ts` (una sola fuente de verdad — si cambian los topes del plan Free, la landing se actualiza sola). Diseño reutiliza el sistema aqua/teal existente sin tokens nuevos.
+
+### Captura de interés en Pro (`upgrade_requests`)
+
+Migración `0007_upgrade_requests.sql`: tabla simple (`email`, `workspace_id` opcional, `plan_interested`, `message`) con policy de insert abierta a `anon` y `authenticated` (sin policy de select — solo se lee vía service role/SQL Editor por ahora, no hay panel de admin todavía). `src/actions/upgrade.ts` (`requestUpgrade`) + `src/components/marketing/upgrade-request-form.tsx` (reutilizable, usado en dos lugares: la sección de precios de la landing para visitantes anónimos, y una tarjeta nueva en `/equipo` — solo visible si el workspace está en plan `free` y quien mira es owner/admin — con el correo del usuario precargado).
+
+### Bug evitado, no repetido
+
+Todos los formularios nuevos de esta pieza (`UpgradeRequestForm`) se construyeron desde el inicio con el patrón `onSubmit` + `startTransition` manual — el patrón roto (`<form action={fn}>` envolviendo `startTransition`) documentado en la entrada anterior no se reintrodujo.
+
+Verificado con Playwright: `/` sin sesión muestra la landing (light y dark mode), click en "Empieza gratis" navega a `/login?mode=signup` y cae en modo registro, flujo completo signup→onboarding→dashboard confirma que el Dashboard real (con sidebar) sigue intacto para usuarios autenticados — sin regresión por los cambios de layout/proxy, formulario de interés en Pro probado desde la landing (anónimo) y desde `/equipo` (autenticado), fila verificada directamente en la tabla `upgrade_requests`. Datos de prueba limpiados.
